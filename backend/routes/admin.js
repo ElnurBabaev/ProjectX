@@ -4,6 +4,7 @@ const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const { adminAuth } = require('../middleware/auth');
 const AchievementChecker = require('../utils/achievementChecker');
+const xlsx = require('xlsx');
 
 const router = express.Router();
 
@@ -314,6 +315,89 @@ router.get('/events/:eventId/participants', adminAuth, async (req, res) => {
     res.json({ participants: result.rows });
   } catch (error) {
     console.error('Ошибка получения участников события:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Экспорт участников события в Excel
+router.get('/events/:eventId/export-participants', adminAuth, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    
+    // Получаем информацию о событии
+    const eventResult = await db.query('SELECT title FROM events WHERE id = ?', [eventId]);
+    if (eventResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Событие не найдено' });
+    }
+    
+    const eventTitle = eventResult.rows[0].title;
+    
+    // Получаем участников
+    const participantsResult = await db.query(`
+      SELECT u.first_name as firstName, 
+             u.last_name as lastName,
+             u.class_grade as classGrade,
+             u.class_letter as classLetter,
+             er.status,
+             er.registered_at
+      FROM event_registrations er
+      JOIN users u ON er.user_id = u.id
+      WHERE er.event_id = ?
+      ORDER BY er.registered_at DESC
+    `, [eventId]);
+    
+    if (participantsResult.rows.length === 0) {
+      return res.status(404).json({ message: 'На это событие никто не зарегистрирован' });
+    }
+    
+    // Преобразуем данные для Excel
+    const excelData = participantsResult.rows.map(participant => ({
+      'Имя': participant.firstName,
+      'Фамилия': participant.lastName,
+      'Класс': (participant.classGrade && participant.classLetter) 
+        ? `${participant.classGrade}${participant.classLetter}` 
+        : '',
+      'Статус участия': participant.status === 'registered' ? 'Зарегистрирован' : 
+                       participant.status === 'attended' ? 'Присутствовал' : 
+                       participant.status,
+      'Дата регистрации': new Date(participant.registered_at).toLocaleDateString('ru-RU', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }));
+    
+    // Создаем Excel файл
+    const worksheet = xlsx.utils.json_to_sheet(excelData);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, 'Участники');
+    
+    // Устанавливаем ширину колонок
+    const maxWidth = 20;
+    worksheet['!cols'] = [
+      { width: 15 }, // Имя
+      { width: 15 }, // Фамилия
+      { width: 8 },  // Класс
+      { width: 18 }, // Статус
+      { width: 20 }  // Дата регистрации
+    ];
+    
+    // Генерируем Excel файл в буфер
+    const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    
+    // Устанавливаем заголовки для скачивания файла
+    const fileName = `Участники_${eventTitle.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    res.setHeader('Content-Length', buffer.length);
+    
+    res.send(buffer);
+    
+  } catch (error) {
+    console.error('Ошибка экспорта участников события:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });

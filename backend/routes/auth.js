@@ -98,7 +98,7 @@ router.post('/login', [
     }
 
     const { login, password } = req.body;
-    console.log('🔐 Попытка входа:', { login, hasPassword: !!password });
+    console.log('🔐 Попытка входа:', { login, hasPassword: !!password, passwordLength: password?.length });
 
     const result = await db.query(
       'SELECT * FROM users WHERE login = ?',
@@ -111,8 +111,14 @@ router.post('/login', [
       return res.status(401).json({ message: 'Неверный логин или пароль' });
     }
     console.log('✅ Пользователь найден:', { id: user.id, login: user.login, hasHash: !!user.password });
+    console.log('🔍 Сравнение паролей:', { 
+      receivedPassword: password, 
+      hashFromDB: user.password.substring(0, 20) + '...' 
+    });
 
     const isValidPassword = await bcrypt.compare(password, user.password);
+    console.log('🔑 Результат сравнения паролей:', { isValidPassword });
+    
     if (!isValidPassword) {
       console.log('❌ Неверный пароль для пользователя:', login);
       return res.status(401).json({ message: 'Неверный логин или пароль' });

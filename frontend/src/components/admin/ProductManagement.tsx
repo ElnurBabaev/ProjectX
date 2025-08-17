@@ -174,6 +174,11 @@ const ProductManagement: React.FC = () => {
       setShowEditModal(false);
       setSelectedProduct(null);
       toast.success('Товар обновлен успешно');
+      
+      // Принудительное обновление через секунду для обновления изображений
+      setTimeout(() => {
+        fetchProducts();
+      }, 1000);
     } catch (error: any) {
       console.error('❌ Ошибка обновления товара:', error);
       toast.error(error.message);

@@ -8,9 +8,11 @@ import {
   Users,
   Clock,
   MapPin,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ImageUploader from '../ImageUploader';
 
 interface Participant {
   id: number;
@@ -303,6 +305,45 @@ const EventManagement: React.FC = () => {
     await fetchParticipants(event.id);
   };
 
+  const exportParticipants = async (eventId: number, eventTitle: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Необходима авторизация');
+        return;
+      }
+
+      const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}/export-participants`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Ошибка экспорта' }));
+        throw new Error(errorData.message || 'Ошибка экспорта');
+      }
+
+      // Получаем файл как blob
+      const blob = await response.blob();
+      
+      // Создаем ссылку для скачивания
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Участники_${eventTitle.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Список участников успешно экспортирован');
+    } catch (error: any) {
+      console.error('Error exporting participants:', error);
+      toast.error(error.message || 'Ошибка экспорта участников');
+    }
+  };
+
   const filteredEvents = events.filter(event => 
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -407,6 +448,13 @@ const EventManagement: React.FC = () => {
                   Участники
                 </button>
                 <button
+                  onClick={() => exportParticipants(event.id, event.title)}
+                  className="px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                  title="Экспортировать участников в Excel"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => {
                     setSelectedEvent(event);
                     setShowEditModal(true);
@@ -490,12 +538,10 @@ const EventManagement: React.FC = () => {
                 onChange={(e) => setNewEvent({ ...newEvent, maxParticipants: Number(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               />
-              <input
-                type="url"
-                placeholder="Ссылка на изображение (опционально)"
-                value={newEvent.imageUrl}
-                onChange={(e) => setNewEvent({ ...newEvent, imageUrl: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              <ImageUploader
+                currentImage={newEvent.imageUrl}
+                onImageChange={(imageUrl) => setNewEvent({ ...newEvent, imageUrl })}
+                label="Изображение мероприятия"
               />
             </div>
             <div className="flex space-x-4 mt-6">
@@ -570,12 +616,10 @@ const EventManagement: React.FC = () => {
                 onChange={(e) => setSelectedEvent({ ...selectedEvent, max_participants: Number(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               />
-              <input
-                type="url"
-                placeholder="Ссылка на изображение (опционально)"
-                value={selectedEvent.image_url || ''}
-                onChange={(e) => setSelectedEvent({ ...selectedEvent, image_url: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              <ImageUploader
+                currentImage={selectedEvent.image_url || ''}
+                onImageChange={(imageUrl) => setSelectedEvent({ ...selectedEvent, image_url: imageUrl })}
+                label="Изображение мероприятия"
               />
             </div>
             <div className="flex space-x-4 mt-6">
@@ -604,12 +648,22 @@ const EventManagement: React.FC = () => {
               <h3 className="text-lg font-semibold">
                 Участники события: {selectedEvent.title}
               </h3>
-              <button
-                onClick={() => setShowParticipantsModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => exportParticipants(selectedEvent.id, selectedEvent.title)}
+                  className="flex items-center px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                  title="Экспортировать список участников в Excel"
+                >
+                  <Download className="w-4 h-4 mr-1" />
+                  Экспорт
+                </button>
+                <button
+                  onClick={() => setShowParticipantsModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             
             {participantsLoading ? (
