@@ -38,6 +38,8 @@ interface User {
   lastName: string;
   classGrade: number;
   classLetter: string;
+  login?: string;
+  role?: string;
 }
 
 const AchievementManagement: React.FC = () => {
@@ -154,7 +156,17 @@ const AchievementManagement: React.FC = () => {
       if (!response.ok) throw new Error('Ошибка загрузки пользователей');
       
       const data = await response.json();
-      setUsers(data.users || []);
+      // Преобразуем поля из snake_case в camelCase для совместимости
+      const transformedUsers = (data.users || []).map((user: any) => ({
+        id: user.id,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        classGrade: user.class_grade,
+        classLetter: user.class_letter,
+        login: user.login,
+        role: user.role
+      }));
+      setUsers(transformedUsers);
     } catch (error) {
       console.error('Ошибка загрузки пользователей:', error);
     }
@@ -272,7 +284,7 @@ const AchievementManagement: React.FC = () => {
   const fetchAchievementUsers = async (achievementId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/achievements/${achievementId}/users`, {
+      const response = await fetch(`http://localhost:5000/api/admin/achievements/${achievementId}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -282,6 +294,7 @@ const AchievementManagement: React.FC = () => {
       if (!response.ok) throw new Error('Ошибка загрузки пользователей достижения');
       
       const data = await response.json();
+      // Данные уже в правильном формате camelCase из API
       setAchievementUsers(data.users || []);
     } catch (error: any) {
       toast.error(error.message);
@@ -293,7 +306,7 @@ const AchievementManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/achievements/${selectedAchievement.id}/assign`, {
+      const response = await fetch(`http://localhost:5000/api/admin/achievements/${selectedAchievement.id}/assign`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -319,7 +332,7 @@ const AchievementManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/achievements/${selectedAchievement.id}/revoke`, {
+      const response = await fetch(`http://localhost:5000/api/admin/achievements/${selectedAchievement.id}/revoke`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

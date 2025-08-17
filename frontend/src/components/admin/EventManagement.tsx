@@ -12,6 +12,16 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+interface Participant {
+  id: number;
+  firstName: string;
+  lastName: string;
+  classGrade: number;
+  classLetter: string;
+  status: string;
+  registered_at: string;
+}
+
 interface Event {
   id: number;
   title: string;
@@ -23,6 +33,7 @@ interface Event {
   image_url?: string;
   current_participants?: number;
   status?: string;
+  points?: number;
 }
 
 const EventManagement: React.FC = () => {
@@ -31,6 +42,9 @@ const EventManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const [newEvent, setNewEvent] = useState({
@@ -61,7 +75,7 @@ const EventManagement: React.FC = () => {
         return;
       }
       
-      const response = await fetch('/api/events', {
+      const response = await fetch('http://localhost:5000/api/events', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -90,7 +104,7 @@ const EventManagement: React.FC = () => {
   const createEvent = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/events', {
+      const response = await fetch('http://localhost:5000/api/events', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -134,7 +148,7 @@ const EventManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/events/${selectedEvent.id}`, {
+      const response = await fetch(`http://localhost:5000/api/events/${selectedEvent.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -170,7 +184,7 @@ const EventManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/events/${eventId}`, {
+      const response = await fetch(`http://localhost:5000/api/events/${eventId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -190,27 +204,21 @@ const EventManagement: React.FC = () => {
     }
   };
 
-  const viewParticipants = async (eventId: number) => {
-    console.log('viewParticipants called with eventId:', eventId);
+  const fetchParticipants = async (eventId: number) => {
+    setParticipantsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      console.log('Token exists:', !!token);
-      
       if (!token) {
         toast.error('Необходима авторизация');
         return;
       }
 
-      console.log('Making request to:', `/api/events/${eventId}/participants`);
-      const response = await fetch(`/api/events/${eventId}/participants`, {
+      const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}/participants`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Ошибка загрузки участников' }));
@@ -218,22 +226,69 @@ const EventManagement: React.FC = () => {
       }
       
       const data = await response.json();
-      console.log('Participants data:', data);
-      
-      if (!data.participants || data.participants.length === 0) {
-        alert('На это событие пока никто не зарегистрирован');
-        return;
+      setParticipants(data.participants || []);
+    } catch (error: any) {
+      console.error('Error fetching participants:', error);
+      toast.error(error.message || 'Ошибка загрузки участников');
+    } finally {
+      setParticipantsLoading(false);
+    }
+  };
+
+  const confirmAttendance = async (eventId: number, userId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}/confirm-attendance`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Ошибка подтверждения участия');
       }
 
-      const participantsList = data.participants.map((p: any) => 
-        `${p.first_name} ${p.last_name} (${p.class_grade || ''}${p.class_letter || ''})`
-      ).join('\n');
-      
-      alert(`Участники события:\n${participantsList}`);
+      const result = await response.json();
+      await fetchParticipants(eventId);
+      toast.success(`Участие подтверждено${result.pointsAwarded > 0 ? `. Начислено ${result.pointsAwarded} баллов` : ''}`);
     } catch (error: any) {
-      console.error('Error in viewParticipants:', error);
-      toast.error(error.message || 'Ошибка загрузки участников');
+      toast.error(error.message);
     }
+  };
+
+  const cancelAttendance = async (eventId: number, userId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}/cancel-attendance`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Ошибка отмены подтверждения');
+      }
+
+      const result = await response.json();
+      await fetchParticipants(eventId);
+      toast.success(`Подтверждение отменено${result.pointsDeducted > 0 ? `. Списано ${result.pointsDeducted} баллов` : ''}`);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const openParticipantsModal = async (event: Event) => {
+    setSelectedEvent(event);
+    setShowParticipantsModal(true);
+    await fetchParticipants(event.id);
   };
 
   const filteredEvents = events.filter(event => 
@@ -316,7 +371,7 @@ const EventManagement: React.FC = () => {
 
               <div className="flex space-x-2">
                 <button
-                  onClick={() => viewParticipants(event.id)}
+                  onClick={() => openParticipantsModal(event)}
                   className="flex-1 px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
                 >
                   Участники
@@ -507,6 +562,76 @@ const EventManagement: React.FC = () => {
                 Сохранить
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Participants Modal */}
+      {showParticipantsModal && selectedEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">
+                Участники события: {selectedEvent.title}
+              </h3>
+              <button
+                onClick={() => setShowParticipantsModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {participantsLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="ml-4 text-gray-600">Загружаю участников...</p>
+              </div>
+            ) : participants.length > 0 ? (
+              <div className="space-y-2">
+                {participants.map(participant => (
+                  <div key={participant.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <span className="font-medium">
+                        {participant.firstName} {participant.lastName}
+                      </span>
+                      <span className="ml-2 text-gray-500">
+                        ({participant.classGrade}{participant.classLetter})
+                      </span>
+                      <span className={`ml-2 px-2 py-1 rounded text-xs ${
+                        participant.status === 'attended' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {participant.status === 'attended' ? 'Присутствовал' : 'Зарегистрирован'}
+                      </span>
+                    </div>
+                    <div className="flex space-x-2">
+                      {participant.status === 'registered' ? (
+                        <button
+                          onClick={() => confirmAttendance(selectedEvent.id, participant.id)}
+                          className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                        >
+                          Подтвердить участие
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => cancelAttendance(selectedEvent.id, participant.id)}
+                          className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                        >
+                          Отменить подтверждение
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">На это событие пока никто не зарегистрирован</p>
+              </div>
+            )}
           </div>
         </div>
       )}

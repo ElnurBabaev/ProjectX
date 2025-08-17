@@ -295,6 +295,146 @@ router.get('/events', adminAuth, async (req, res) => {
   }
 });
 
+// Получение участников события для админа
+router.get('/events/:eventId/participants', adminAuth, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    
+    const result = await db.query(`
+      SELECT u.id, u.first_name as firstName, u.last_name as lastName, 
+             u.class_grade as classGrade, u.class_letter as classLetter,
+             er.status, er.registered_at
+      FROM event_registrations er
+      JOIN users u ON er.user_id = u.id
+      WHERE er.event_id = ?
+      ORDER BY er.registered_at DESC
+    `, [eventId]);
+    
+    res.json({ participants: result.rows });
+  } catch (error) {
+    console.error('Ошибка получения участников события:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Подтверждение участия в событии
+router.post('/events/:eventId/confirm-attendance', [
+  adminAuth,
+  body('userId').isInt().withMessage('ID пользователя должен быть числом')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { eventId } = req.params;
+    const { userId } = req.body;
+
+    // Проверяем существование события
+    const eventCheck = await db.query('SELECT id, points FROM events WHERE id = ?', [eventId]);
+    if (eventCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Событие не найдено' });
+    }
+
+    // Проверяем существование регистрации
+    const registrationCheck = await db.query(
+      'SELECT id, status FROM event_registrations WHERE event_id = ? AND user_id = ?', 
+      [eventId, userId]
+    );
+    if (registrationCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Регистрация на событие не найдена' });
+    }
+
+    const registration = registrationCheck.rows[0];
+    if (registration.status === 'attended') {
+      return res.status(400).json({ message: 'Участие уже подтверждено' });
+    }
+
+    const event = eventCheck.rows[0];
+
+    // Обновляем статус регистрации на "присутствовал"
+    await db.query(
+      'UPDATE event_registrations SET status = ? WHERE event_id = ? AND user_id = ?',
+      ['attended', eventId, userId]
+    );
+
+    // Начисляем баллы за участие (если указаны)
+    if (event.points && event.points > 0) {
+      await db.query(`
+        UPDATE users 
+        SET points = points + ?, total_earned_points = total_earned_points + ? 
+        WHERE id = ?
+      `, [event.points, event.points, userId]);
+    }
+
+    res.json({ 
+      message: 'Участие подтверждено',
+      pointsAwarded: event.points || 0
+    });
+  } catch (error) {
+    console.error('Ошибка подтверждения участия:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Отмена подтверждения участия
+router.post('/events/:eventId/cancel-attendance', [
+  adminAuth,
+  body('userId').isInt().withMessage('ID пользователя должен быть числом')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { eventId } = req.params;
+    const { userId } = req.body;
+
+    // Проверяем существование события
+    const eventCheck = await db.query('SELECT id, points FROM events WHERE id = ?', [eventId]);
+    if (eventCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Событие не найдено' });
+    }
+
+    // Проверяем существование регистрации
+    const registrationCheck = await db.query(
+      'SELECT id, status FROM event_registrations WHERE event_id = ? AND user_id = ?', 
+      [eventId, userId]
+    );
+    if (registrationCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Регистрация на событие не найдена' });
+    }
+
+    const registration = registrationCheck.rows[0];
+    if (registration.status !== 'attended') {
+      return res.status(400).json({ message: 'Участие не было подтверждено' });
+    }
+
+    const event = eventCheck.rows[0];
+
+    // Обновляем статус регистрации на "зарегистрирован"
+    await db.query(
+      'UPDATE event_registrations SET status = ? WHERE event_id = ? AND user_id = ?',
+      ['registered', eventId, userId]
+    );
+
+    // Вычитаем баллы за участие (если они были начислены)
+    if (event.points && event.points > 0) {
+      await db.query('UPDATE users SET points = GREATEST(0, points - ?) WHERE id = ?', [event.points, userId]);
+    }
+
+    res.json({ 
+      message: 'Подтверждение участия отменено',
+      pointsDeducted: event.points || 0
+    });
+  } catch (error) {
+    console.error('Ошибка отмены подтверждения участия:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 // === УПРАВЛЕНИЕ ТОВАРАМИ (Admin) ===
 
 // Получение всех товаров для админа
@@ -322,6 +462,147 @@ router.get('/achievements', adminAuth, async (req, res) => {
     res.json({ achievements: result.rows });
   } catch (error) {
     console.error('Ошибка получения достижений:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Получение пользователей с достижением
+router.get('/achievements/:achievementId/users', adminAuth, async (req, res) => {
+  try {
+    const { achievementId } = req.params;
+    
+    const result = await db.query(`
+      SELECT u.id, u.first_name as firstName, u.last_name as lastName, 
+             u.class_grade as classGrade, u.class_letter as classLetter,
+             ua.awarded_at
+      FROM user_achievements ua
+      JOIN users u ON ua.user_id = u.id
+      WHERE ua.achievement_id = ?
+      ORDER BY ua.awarded_at DESC
+    `, [achievementId]);
+    
+    res.json({ users: result.rows });
+  } catch (error) {
+    console.error('Ошибка получения пользователей достижения:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Назначение достижения пользователю
+router.post('/achievements/:achievementId/assign', [
+  adminAuth,
+  body('userId').isInt().withMessage('ID пользователя должен быть числом')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { achievementId } = req.params;
+    const { userId } = req.body;
+
+    // Проверяем существование достижения
+    const achievementCheck = await db.query('SELECT id, points FROM achievements WHERE id = ?', [achievementId]);
+    if (achievementCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Достижение не найдено' });
+    }
+
+    // Проверяем существование пользователя
+    const userCheck = await db.query('SELECT id, points FROM users WHERE id = ?', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    // Проверяем, нет ли уже такого достижения у пользователя
+    const existingCheck = await db.query(
+      'SELECT id FROM user_achievements WHERE user_id = ? AND achievement_id = ?', 
+      [userId, achievementId]
+    );
+    if (existingCheck.rows.length > 0) {
+      return res.status(400).json({ message: 'У пользователя уже есть это достижение' });
+    }
+
+    const achievement = achievementCheck.rows[0];
+    const user = userCheck.rows[0];
+
+    // Добавляем достижение пользователю
+    await db.query(
+      'INSERT INTO user_achievements (user_id, achievement_id, awarded_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+      [userId, achievementId]
+    );
+
+    // Начисляем баллы за достижение
+    const newPoints = (user.points || 0) + achievement.points;
+    await db.query(
+      'UPDATE users SET points = ?, total_earned_points = total_earned_points + ? WHERE id = ?',
+      [newPoints, achievement.points, userId]
+    );
+
+    res.json({ 
+      message: 'Достижение успешно назначено пользователю',
+      pointsAwarded: achievement.points
+    });
+  } catch (error) {
+    console.error('Ошибка назначения достижения:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Отзыв достижения у пользователя
+router.post('/achievements/:achievementId/revoke', [
+  adminAuth,
+  body('userId').isInt().withMessage('ID пользователя должен быть числом')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { achievementId } = req.params;
+    const { userId } = req.body;
+
+    // Проверяем существование достижения
+    const achievementCheck = await db.query('SELECT id, points FROM achievements WHERE id = ?', [achievementId]);
+    if (achievementCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Достижение не найдено' });
+    }
+
+    // Проверяем существование пользователя
+    const userCheck = await db.query('SELECT id, points FROM users WHERE id = ?', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    // Проверяем, есть ли такое достижение у пользователя
+    const existingCheck = await db.query(
+      'SELECT id FROM user_achievements WHERE user_id = ? AND achievement_id = ?', 
+      [userId, achievementId]
+    );
+    if (existingCheck.rows.length === 0) {
+      return res.status(400).json({ message: 'У пользователя нет этого достижения' });
+    }
+
+    const achievement = achievementCheck.rows[0];
+    const user = userCheck.rows[0];
+
+    // Удаляем достижение у пользователя
+    await db.query(
+      'DELETE FROM user_achievements WHERE user_id = ? AND achievement_id = ?',
+      [userId, achievementId]
+    );
+
+    // Вычитаем баллы за достижение (но не уменьшаем total_earned_points)
+    const newPoints = Math.max(0, (user.points || 0) - achievement.points);
+    await db.query('UPDATE users SET points = ? WHERE id = ?', [newPoints, userId]);
+
+    res.json({ 
+      message: 'Достижение успешно отозвано у пользователя',
+      pointsDeducted: achievement.points
+    });
+  } catch (error) {
+    console.error('Ошибка отзыва достижения:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
