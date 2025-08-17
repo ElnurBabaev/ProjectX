@@ -152,12 +152,28 @@ export const productsApi = {
 
 export const adminApi = {
   getStatistics: () => api.get('/admin/statistics'),
-  getUsers: (params?: any) => api.get('/admin/users', { params }),
+  getUsers: (params?: any) => api.get('/admin/users', { params }).then((r) => ({
+    data: {
+      users: (r.data.users || []).map((u: any) => ({
+        id: u.id,
+        login: u.login,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        classGrade: u.class_grade,
+        classLetter: u.class_letter,
+        personalPoints: u.points || 0,
+        role: u.role,
+        createdAt: u.created_at,
+      }))
+    }
+  })),
   createUser: (data: any) => api.post('/admin/users', data),
   updateUser: (userId: number, data: any) => api.put(`/admin/users/${userId}`, data),
   deleteUser: (userId: number) => api.delete(`/admin/users/${userId}`),
   resetPassword: (userId: number, newPassword: string) => 
     api.post(`/admin/users/${userId}/reset-password`, { newPassword }),
+  updateUserPoints: (userId: number, points: number) => 
+    api.post(`/admin/users/${userId}/update-points`, { points }),
   
   getEvents: () => api.get('/admin/events'),
   getProducts: () => api.get('/admin/products'),

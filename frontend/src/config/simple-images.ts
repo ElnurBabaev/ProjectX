@@ -183,9 +183,20 @@ export const DEFAULT_AVATAR = '/images/avatars/default.svg';
 export const DEFAULT_ACHIEVEMENT_ICON = '/images/achievements/trophy-gold.svg';
 
 export const getAvatarPath = (avatarId?: string | null): string => {
-  if (!avatarId) return DEFAULT_AVATAR;
+  if (!avatarId) {
+    console.log('⚠️ getAvatarPath: No avatarId provided, using default');
+    return DEFAULT_AVATAR;
+  }
+  
   const avatar = AVATAR_OPTIONS.find(a => a.id === avatarId);
-  return avatar ? avatar.path : DEFAULT_AVATAR;
+  
+  if (avatar) {
+    console.log('✅ getAvatarPath: Avatar found for', avatarId, '->', avatar.path);
+    return avatar.path;
+  } else {
+    console.log('❌ getAvatarPath: Avatar not found for', avatarId, ', using default');
+    return DEFAULT_AVATAR;
+  }
 };
 
 export const getAchievementIconPath = (iconId?: string | null): string => {

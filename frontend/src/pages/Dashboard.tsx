@@ -9,32 +9,32 @@ const Dashboard: React.FC = () => {
   const stats = [
     {
       title: 'Мои баллы',
-      value: user?.personalPoints || 0,
+      value: user?.points || 0,
       icon: Star,
       color: 'from-yellow-400 to-orange-500',
       bgColor: 'bg-yellow-50',
       textColor: 'text-yellow-700'
     },
     {
-      title: 'Баллы класса',
-      value: user?.classPoints || 0,
-      icon: Users,
+      title: 'Достижения',
+      value: user?.achievements_count || 0,
+      icon: Trophy,
       color: 'from-blue-400 to-blue-600',
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-700'
     },
     {
       title: 'Мероприятий',
-      value: 12, // TODO: получить реальные данные
+      value: user?.events_count || 0,
       icon: Calendar,
       color: 'from-green-400 to-green-600',
       bgColor: 'bg-green-50',
       textColor: 'text-green-700'
     },
     {
-      title: 'Достижений',
-      value: 8, // TODO: получить реальные данные
-      icon: Trophy,
+      title: 'Покупок',
+      value: 0, // TODO: добавить статистику покупок
+      icon: ShoppingBag,
       color: 'from-purple-400 to-purple-600',
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-700'
@@ -78,10 +78,10 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold gradient-text">
-                  Добро пожаловать, {user?.firstName}!
+                  Добро пожаловать, {user?.first_name}!
                 </h1>
                 <p className="text-gray-600 mt-2">
-                  {user?.classGrade}{user?.classLetter} класс • 
+                  {user?.class_grade}{user?.class_letter} класс • 
                   Сегодня отличный день для новых достижений! 🎯
                 </p>
               </div>
@@ -120,7 +120,7 @@ const Dashboard: React.FC = () => {
                 <TrendingUp className={`w-5 h-5 ${stat.textColor}`} />
               </div>
               <div className={`text-3xl font-bold ${stat.textColor} mb-2`}>
-                {stat.value.toLocaleString()}
+                {Math.floor(stat.value).toLocaleString()}
               </div>
               <div className={`text-sm ${stat.textColor} opacity-80`}>
                 {stat.title}

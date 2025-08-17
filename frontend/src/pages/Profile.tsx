@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { 
   User, 
   GraduationCap, 
-  Users, 
   Calendar, 
   Trophy, 
   Eye, 
@@ -26,7 +25,7 @@ interface PasswordFormData {
 }
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [myAchievements, setMyAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +84,7 @@ const Profile: React.FC = () => {
   const handleAvatarSelect = async (avatarId: string) => {
     setAvatarLoading(true);
     try {
-      await fetch('/api/auth/profile', {
+      const response = await fetch('http://localhost:5000/api/auth/profile', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -94,9 +93,16 @@ const Profile: React.FC = () => {
         body: JSON.stringify({ avatar_id: avatarId })
       });
       
+      if (!response.ok) {
+        throw new Error('Ошибка обновления аватара');
+      }
+      
       // Обновляем локальное состояние пользователя
       if (user) {
-        user.avatar_url = avatarId;
+        const updatedUser = { ...user, avatar_url: avatarId };
+        
+        // Обновляем контекст авторизации
+        updateUser(updatedUser);
       }
       
       toast.success('Аватар обновлен');
@@ -301,29 +307,45 @@ const Profile: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
+          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
         >
-          <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
-            <div className="flex items-center justify-between mb-4">
-              <Users className="w-8 h-8 text-blue-600" />
-              <div className="text-right">
-                <div className="text-2xl font-bold text-blue-700">
-                  {myEvents.length}
-                </div>
-                <div className="text-blue-600 text-sm">Мероприятий</div>
+          <div className="bg-yellow-50 rounded-2xl p-4 border border-yellow-100">
+            <div className="text-center">
+              <Trophy className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-yellow-700">
+                {Math.floor(user?.points || 0)}
               </div>
+              <div className="text-yellow-600 text-sm">Текущие баллы</div>
             </div>
           </div>
 
-          <div className="bg-purple-50 rounded-2xl p-6 border border-purple-100">
-            <div className="flex items-center justify-between mb-4">
-              <Trophy className="w-8 h-8 text-purple-600" />
-              <div className="text-right">
-                <div className="text-2xl font-bold text-purple-700">
-                  {myAchievements.length}
-                </div>
-                <div className="text-purple-600 text-sm">Достижений</div>
+          <div className="bg-green-50 rounded-2xl p-4 border border-green-100">
+            <div className="text-center">
+              <Trophy className="w-8 h-8 text-green-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-green-700">
+                {Math.floor(user?.total_earned_points || 0)}
               </div>
+              <div className="text-green-600 text-sm">Всего заработано</div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+            <div className="text-center">
+              <Calendar className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-blue-700">
+                {myEvents.length}
+              </div>
+              <div className="text-blue-600 text-sm">Мероприятий</div>
+            </div>
+          </div>
+
+          <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100">
+            <div className="text-center">
+              <Trophy className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-purple-700">
+                {myAchievements.length}
+              </div>
+              <div className="text-purple-600 text-sm">Достижений</div>
             </div>
           </div>
         </motion.div>

@@ -9,6 +9,7 @@ import {
   X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { adminApi } from '../../utils/api';
 
 interface User {
   id: number;
@@ -51,19 +52,9 @@ const UserManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) throw new Error('Ошибка загрузки пользователей');
-      
-      const data = await response.json();
-      setUsers(data.users);
-    } catch (error) {
+      const response = await adminApi.getUsers();
+      setUsers(response.data.users || []);
+    } catch (error: any) {
       toast.error('Ошибка загрузки пользователей');
       console.error(error);
     } finally {
@@ -73,21 +64,7 @@ const UserManagement: React.FC = () => {
 
   const createUser = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(newUser)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка создания пользователя');
-      }
-
+      await adminApi.createUser(newUser);
       await fetchUsers();
       setShowCreateModal(false);
       setNewUser({
@@ -101,7 +78,7 @@ const UserManagement: React.FC = () => {
       });
       toast.success('Пользователь создан успешно');
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || 'Ошибка создания пользователя');
     }
   };
 
@@ -109,34 +86,20 @@ const UserManagement: React.FC = () => {
     if (!selectedUser) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          login: selectedUser.login,
-          firstName: selectedUser.firstName,
-          lastName: selectedUser.lastName,
-          classGrade: selectedUser.classGrade,
-          classLetter: selectedUser.classLetter,
-          role: selectedUser.role
-        })
+      await adminApi.updateUser(selectedUser.id, {
+        login: selectedUser.login,
+        firstName: selectedUser.firstName,
+        lastName: selectedUser.lastName,
+        classGrade: selectedUser.classGrade,
+        classLetter: selectedUser.classLetter,
+        role: selectedUser.role
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка обновления пользователя');
-      }
-
       await fetchUsers();
       setShowEditModal(false);
       setSelectedUser(null);
       toast.success('Пользователь обновлен успешно');
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || 'Ошибка обновления пользователя');
     }
   };
 
@@ -144,27 +107,13 @@ const UserManagement: React.FC = () => {
     if (!selectedUser || !newPassword) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/users/${selectedUser.id}/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ newPassword })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка сброса пароля');
-      }
-
+      await adminApi.resetPassword(selectedUser.id, newPassword);
       setShowPasswordModal(false);
       setSelectedUser(null);
       setNewPassword('');
       toast.success('Пароль изменен успешно');
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || 'Ошибка сброса пароля');
     }
   };
 
@@ -172,57 +121,30 @@ const UserManagement: React.FC = () => {
     if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка удаления пользователя');
-      }
-
+      await adminApi.deleteUser(userId);
       await fetchUsers();
       toast.success('Пользователь удален успешно');
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || 'Ошибка удаления пользователя');
     }
   };
 
   const updateUserPoints = async (userId: number, points: number) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/users/${userId}/update-points`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ points })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка обновления баллов');
-      }
-
+      await adminApi.updateUserPoints(userId, points);
       await fetchUsers();
       toast.success(`${points > 0 ? 'Баллы начислены' : 'Баллы списаны'}`);
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || 'Ошибка при обновлении баллов');
     }
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.login.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (user.firstName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (user.lastName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (user.login?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
-    const matchesClass = filterClass === 'all' || `${user.classGrade}${user.classLetter}` === filterClass;
+    const matchesClass = filterClass === 'all' || `${user.classGrade || ''}${user.classLetter || ''}` === filterClass;
     
     return matchesSearch && matchesRole && matchesClass;
   });
@@ -328,26 +250,26 @@ const UserManagement: React.FC = () => {
                       <div className="flex-shrink-0 h-10 w-10">
                         <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
                           <span className="text-white font-medium">
-                            {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                            {(user.firstName || '').charAt(0)}{(user.lastName || '').charAt(0)}
                           </span>
                         </div>
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">
-                          {user.firstName} {user.lastName}
+                          {user.firstName || ''} {user.lastName || ''}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {user.login}
+                    {user.login || ''}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {user.classGrade}{user.classLetter}
+                    {user.classGrade || ''}{user.classLetter || ''}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-900">{user.personalPoints}</span>
+                      <span className="text-sm text-gray-900">{Math.floor(user.personalPoints || 0)}</span>
                       <button
                         onClick={() => {
                           const points = prompt('Введите количество баллов (отрицательное для списания):');

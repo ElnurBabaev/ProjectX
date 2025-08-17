@@ -10,6 +10,8 @@ export interface User {
   role: 'student' | 'admin';
   isAdmin: boolean;
   avatar_url?: string;
+  points?: number;
+  total_earned_points?: number;
   achievements_count?: number;
   events_count?: number;
   created_at: string;

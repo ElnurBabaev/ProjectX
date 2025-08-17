@@ -10,6 +10,7 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   updateUser: (user: User) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,12 +45,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const response = await authApi.getMe();
           const updatedUser = response.data.user;
           
-          // Обновляем пользователя если данные изменились
-          if (JSON.stringify(userData) !== JSON.stringify(updatedUser)) {
-            setUser(updatedUser);
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-            console.log('🔄 Данные пользователя обновлены с сервера');
+          console.log('🔄 Сравнение данных пользователя:', {
+            localStorage: userData,
+            server: updatedUser,
+            avatarLocal: userData.avatar_url,
+            avatarServer: updatedUser.avatar_url
+          });
+          
+          // Если сервер не вернул avatar_url, но он есть в localStorage - сохраняем его
+          if (userData.avatar_url && !updatedUser.avatar_url) {
+            console.log('🔄 Сохраняем avatar_url из localStorage');
+            updatedUser.avatar_url = userData.avatar_url;
           }
+          
+          // Если сервер вернул avatar_url, но он отличается от localStorage - используем серверный
+          if (updatedUser.avatar_url && updatedUser.avatar_url !== userData.avatar_url) {
+            console.log('🔄 Обновляем avatar_url с сервера');
+          }
+          
+          // Всегда обновляем пользователя (даже если данные одинаковые, чтобы убедиться что avatar_url правильный)
+          console.log('⚠️ Обновляем данные пользователя');
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          console.log('🔄 Финальные данные пользователя:', updatedUser);
         } catch (error) {
           console.error('❌ Ошибка проверки токена:', error);
           localStorage.removeItem('token');
@@ -109,9 +127,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await authApi.login({ login: loginValue, password });
       const { token, user: userData } = response.data;
       
+      console.log('📦 Данные от сервера при логине:', {
+        token: !!token,
+        user: userData,
+        avatar_url: userData.avatar_url
+      });
+      
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
+      
+      console.log('💾 Данные сохранены в localStorage:', {
+        savedUser: JSON.parse(localStorage.getItem('user') || '{}'),
+        avatar_url: JSON.parse(localStorage.getItem('user') || '{}').avatar_url
+      });
       
       console.log('✅ Успешный вход:', userData.login);
       toast.success('Вы успешно вошли в систему!');
@@ -161,13 +190,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('user', JSON.stringify(userData));
   };
 
+  const refreshUser = async () => {
+    const token = localStorage.getItem('token');
+    if (!token || !user) return;
+
+    try {
+      const response = await authApi.getMe();
+      const updatedUser = response.data.user;
+      
+      // Сохраняем avatar_url, если он есть в текущих данных, но отсутствует на сервере
+      if (user.avatar_url && !updatedUser.avatar_url) {
+        updatedUser.avatar_url = user.avatar_url;
+      }
+      
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      console.log('🔄 Данные пользователя обновлены:', updatedUser);
+    } catch (error) {
+      console.error('❌ Ошибка обновления данных пользователя:', error);
+    }
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
     loading,
-    updateUser
+    updateUser,
+    refreshUser
   };
 
   return (

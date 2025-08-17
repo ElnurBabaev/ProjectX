@@ -83,6 +83,19 @@ router.post('/order', [
       });
     }
 
+    // Проверяем достаточность баллов пользователя
+    const userResult = await db.query('SELECT points FROM users WHERE id = ?', [userId]);
+    const userPoints = userResult.rows[0]?.points || 0;
+
+    if (userPoints < totalAmount) {
+      return res.status(400).json({ 
+        message: `Недостаточно баллов! У вас ${userPoints}, нужно ${totalAmount}` 
+      });
+    }
+
+    // Списываем баллы
+    await db.query('UPDATE users SET points = points - ? WHERE id = ?', [totalAmount, userId]);
+
     // Создаем заказ
     const orderResult = await db.query(
       'INSERT INTO orders (user_id, total_amount, shipping_address, notes) VALUES (?, ?, ?, ?)',

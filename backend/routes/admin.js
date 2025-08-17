@@ -64,7 +64,7 @@ router.get('/statistics', adminAuth, async (req, res) => {
 router.get('/users', adminAuth, async (req, res) => {
   try {
     const { role, search } = req.query;
-    let query = 'SELECT id, login, first_name, last_name, class_grade, class_letter, role, created_at FROM users';
+    let query = 'SELECT id, login, first_name, last_name, class_grade, class_letter, role, points, created_at FROM users';
     const params = [];
 
     if (role) {
@@ -377,6 +377,54 @@ router.get('/export/users', adminAuth, async (req, res) => {
     res.send('\uFEFF' + csv); // BOM для корректной кодировки в Excel
   } catch (error) {
     console.error('Ошибка экспорта пользователей:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// === ОБНОВЛЕНИЕ БАЛЛОВ ПОЛЬЗОВАТЕЛЯ ===
+router.post('/users/:userId/update-points', [
+  adminAuth,
+  body('points').isInt().withMessage('Количество баллов должно быть числом')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { userId } = req.params;
+    const { points } = req.body;
+
+    console.log(`🎯 Обновление баллов пользователя ${userId}: ${points}`);
+
+    // Проверяем существование пользователя
+    const userCheck = await db.query('SELECT id, points FROM users WHERE id = ?', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    const currentPoints = userCheck.rows[0].points || 0;
+    const newPoints = currentPoints + points;
+
+    // Обновляем баллы пользователя
+    if (points > 0) {
+      // При начислении баллов обновляем и total_earned_points
+      await db.query('UPDATE users SET points = ?, total_earned_points = total_earned_points + ? WHERE id = ?', [newPoints, points, userId]);
+    } else {
+      // При списании баллов обновляем только points
+      await db.query('UPDATE users SET points = ? WHERE id = ?', [newPoints, userId]);
+    }
+
+    console.log(`✅ Баллы обновлены: ${currentPoints} → ${newPoints}`);
+
+    res.json({
+      message: 'Баллы успешно обновлены',
+      oldPoints: currentPoints,
+      addedPoints: points,
+      newPoints: newPoints
+    });
+  } catch (error) {
+    console.error('Ошибка при обновлении баллов:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });

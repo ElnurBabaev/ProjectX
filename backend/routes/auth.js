@@ -139,7 +139,10 @@ router.post('/login', [
         class_grade: user.class_grade,
         class_letter: user.class_letter,
         role: user.role,
-        isAdmin: user.role === 'admin'
+        isAdmin: user.role === 'admin',
+        avatar_url: user.avatar_url,
+        points: user.points || 0,
+        total_earned_points: user.total_earned_points || 0
       }
     });
   } catch (error) {
@@ -152,7 +155,7 @@ router.post('/login', [
 router.get('/profile', auth, async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT id, login, first_name, last_name, class_grade, class_letter, role, created_at FROM users WHERE id = ?',
+      'SELECT id, login, first_name, last_name, class_grade, class_letter, role, avatar_url, points, total_earned_points, created_at FROM users WHERE id = ?',
       [req.user.id]
     );
     
@@ -189,6 +192,9 @@ router.get('/profile', auth, async (req, res) => {
         class_letter: user.class_letter,
         role: user.role,
         isAdmin: user.role === 'admin',
+        avatar_url: user.avatar_url,
+        points: user.points || 0,
+        total_earned_points: user.total_earned_points || 0,
         achievements_count: achievementsCount,
         events_count: eventsCount,
         created_at: user.created_at

@@ -3,9 +3,11 @@ import { motion } from 'framer-motion';
 import { ShoppingBag, Star, Package, CreditCard, History } from 'lucide-react';
 import { productsApi } from '../utils/api';
 import { Product, Order } from '../utils/types';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const Shop: React.FC = () => {
+  const { user, refreshUser } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,20 @@ const Shop: React.FC = () => {
   };
 
   const handlePurchase = async (productId: number) => {
-    // Просто создаем заказ с одним товаром
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+      toast.error('Товар не найден');
+      return;
+    }
+
+    // Проверяем достаточность баллов
+    const userPoints = Math.floor(user?.points || 0);
+    const productPrice = Math.floor(product.price);
+    if (userPoints < productPrice) {
+      toast.error(`Недостаточно баллов! У вас ${userPoints}, нужно ${productPrice}`);
+      return;
+    }
+
     setPurchaseLoading(productId);
     
     try {
@@ -46,7 +61,10 @@ const Shop: React.FC = () => {
       
       toast.success('Товар успешно куплен!');
       
-      // Обновляем данные
+      // Динамически обновляем баланс пользователя
+      await refreshUser();
+      
+      // Обновляем данные о заказах
       await loadData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Ошибка покупки');
@@ -102,10 +120,10 @@ const Shop: React.FC = () => {
                 <div className="flex items-center justify-end mb-2">
                   <Star className="w-6 h-6 text-yellow-500 mr-2" />
                   <span className="text-3xl font-bold text-yellow-600">
-                    0
+                    {Math.floor(user?.points || 0)}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600">Баланс (скоро)</p>
+                <p className="text-sm text-gray-600">Ваши баллы</p>
               </div>
             </div>
           </div>
@@ -200,7 +218,7 @@ const Shop: React.FC = () => {
                     <div className="flex items-center">
                       <Star className="w-5 h-5 text-yellow-500 mr-1" />
                       <span className="text-2xl font-bold text-yellow-600">
-                        {product.price}
+                        {Math.floor(product.price)}
                       </span>
                     </div>
                   </div>
@@ -277,7 +295,7 @@ const Shop: React.FC = () => {
                     <div className="flex items-center text-yellow-600">
                       <Star className="w-4 h-4 mr-1" />
                       <span className="text-lg font-semibold">
-                        {order.total_amount}
+                        {Math.floor(order.total_amount)}
                       </span>
                     </div>
                     <span className="text-xs text-gray-500">сумма</span>
@@ -306,8 +324,8 @@ const Shop: React.FC = () => {
                       </div>
                       
                       <div className="text-right">
-                        <p className="font-semibold text-gray-800">{item.price * item.quantity}</p>
-                        <p className="text-xs text-gray-500">{item.price} за шт.</p>
+                        <p className="font-semibold text-gray-800">{Math.floor(item.price * item.quantity)}</p>
+                        <p className="text-xs text-gray-500">{Math.floor(item.price)} за шт.</p>
                       </div>
                     </div>
                   ))}
