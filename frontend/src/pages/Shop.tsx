@@ -1,0 +1,357 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { ShoppingBag, Star, Package, CreditCard, History } from 'lucide-react';
+import { productsApi } from '../utils/api';
+import { Product, Order } from '../utils/types';
+import toast from 'react-hot-toast';
+
+const Shop: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('products');
+  const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null);
+
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [productsResponse, ordersResponse] = await Promise.all([
+        productsApi.getAll(),
+        productsApi.getMyOrders()
+      ]);
+      
+      setProducts(productsResponse.data);
+      setOrders(ordersResponse.data || []);
+    } catch (error) {
+      toast.error('Ошибка загрузки данных');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePurchase = async (productId: number) => {
+    // Просто создаем заказ с одним товаром
+    setPurchaseLoading(productId);
+    
+    try {
+      await productsApi.createOrder({
+        items: [{ product_id: productId, quantity: 1 }],
+        shipping_address: 'Школа',
+        notes: 'Покупка через магазин'
+      });
+      
+      toast.success('Товар успешно куплен!');
+      
+      // Обновляем данные
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Ошибка покупки');
+    } finally {
+      setPurchaseLoading(null);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Загрузка магазина...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-white/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold gradient-text mb-2">
+                  🛒 Магазин мерча
+                </h1>
+                <p className="text-gray-600">
+                  Потратьте заработанные баллы на крутые товары!
+                </p>
+              </div>
+              
+              {/* Balance */}
+              <div className="text-right">
+                <div className="flex items-center justify-end mb-2">
+                  <Star className="w-6 h-6 text-yellow-500 mr-2" />
+                  <span className="text-3xl font-bold text-yellow-600">
+                    0
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">Баланс (скоро)</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-8"
+        >
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={() => setActiveTab('products')}
+              className={`flex items-center px-6 py-3 rounded-full text-sm font-medium transition-all duration-200 ${
+                activeTab === 'products'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                  : 'bg-white text-gray-600 hover:bg-gray-50 shadow-sm hover:shadow-md'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4 mr-2" />
+              Товары
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`flex items-center px-6 py-3 rounded-full text-sm font-medium transition-all duration-200 ${
+                activeTab === 'history'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                  : 'bg-white text-gray-600 hover:bg-gray-50 shadow-sm hover:shadow-md'
+              }`}
+            >
+              <History className="w-4 h-4 mr-2" />
+              История покупок ({orders.length})
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Products Tab */}
+        {activeTab === 'products' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {products.map((product, index) => (
+              <motion.div
+                key={product.id}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * index }}
+                className="card hover:shadow-2xl"
+              >
+                {/* Product Image Placeholder */}
+                <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl mb-4 flex items-center justify-center">
+                  {product.image_url ? (
+                    <img 
+                      src={product.image_url} 
+                      alt={product.name}
+                      className="w-full h-full object-cover rounded-xl"
+                    />
+                  ) : (
+                    <Package className="w-16 h-16 text-gray-400" />
+                  )}
+                </div>
+
+                {/* Product Info */}
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">
+                    {product.name}
+                  </h3>
+                  
+                  <p className="text-gray-600 mb-4 line-clamp-3">
+                    {product.description}
+                  </p>
+                  
+                  {/* Stock Status */}
+                  <div className="mb-4">
+                    {product.stock_quantity > 0 ? (
+                      <div className="flex items-center text-green-600">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                        <span className="text-sm">В наличии: {product.stock_quantity} шт.</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-red-600">
+                        <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                        <span className="text-sm">Нет в наличии</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Price and Buy Button */}
+                <div className="mt-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <Star className="w-5 h-5 text-yellow-500 mr-1" />
+                      <span className="text-2xl font-bold text-yellow-600">
+                        {product.price}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => handlePurchase(product.id)}
+                    disabled={
+                      product.stock_quantity === 0 ||
+                      purchaseLoading === product.id
+                    }
+                    className={`w-full btn flex items-center justify-center ${
+                      product.stock_quantity === 0
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'btn-primary'
+                    }`}
+                  >
+                    {purchaseLoading === product.id ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    ) : (
+                      <CreditCard className="w-4 h-4 mr-2" />
+                    )}
+                    
+                    {purchaseLoading === product.id
+                      ? 'Покупаем...'
+                      : product.stock_quantity === 0
+                        ? 'Нет в наличии'
+                        : 'Купить'
+                    }
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Order History Tab */}
+        {activeTab === 'history' && (
+          <div className="space-y-4">
+            {orders.map((order, index) => (
+              <motion.div
+                key={order.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 * index }}
+                className="bg-white/80 backdrop-blur-lg rounded-xl p-6 shadow-lg border border-white/20"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-800">
+                      Заказ #{order.id}
+                    </h4>
+                    <p className="text-gray-600 text-sm">
+                      {formatDate(order.created_at)}
+                    </p>
+                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-1 ${
+                      order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                      order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                      order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                      order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {
+                        order.status === 'pending' ? 'Ожидает' :
+                        order.status === 'processing' ? 'Обрабатывается' :
+                        order.status === 'shipped' ? 'Отправлен' :
+                        order.status === 'delivered' ? 'Доставлен' :
+                        order.status === 'cancelled' ? 'Отменён' :
+                        order.status
+                      }
+                    </span>
+                  </div>
+                  
+                  <div className="text-right">
+                    <div className="flex items-center text-yellow-600">
+                      <Star className="w-4 h-4 mr-1" />
+                      <span className="text-lg font-semibold">
+                        {order.total_amount}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500">сумма</span>
+                  </div>
+                </div>
+                
+                {/* Order Items */}
+                <div className="space-y-2">
+                  {order.items.map((item, itemIndex) => (
+                    <div key={itemIndex} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg flex items-center justify-center">
+                        {item.image_url ? (
+                          <img 
+                            src={item.image_url} 
+                            alt={item.name}
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                        ) : (
+                          <Package className="w-6 h-6 text-gray-500" />
+                        )}
+                      </div>
+                      
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">{item.name}</p>
+                        <p className="text-sm text-gray-600">Количество: {item.quantity}</p>
+                      </div>
+                      
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-800">{item.price * item.quantity}</p>
+                        <p className="text-xs text-gray-500">{item.price} за шт.</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty States */}
+        {activeTab === 'products' && products.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <div className="text-6xl mb-4">🛒</div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              Товары временно недоступны
+            </h3>
+            <p className="text-gray-600">
+              Скоро здесь появится крутой мерч для учеников!
+            </p>
+          </motion.div>
+        )}
+
+        {activeTab === 'history' && orders.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <div className="text-6xl mb-4">📦</div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              История покупок пуста
+            </h3>
+            <p className="text-gray-600">
+              Когда вы купите первый товар, он появится здесь
+            </p>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Shop;
