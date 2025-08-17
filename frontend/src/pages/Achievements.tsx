@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Star, Award, Calendar, Target } from 'lucide-react';
+import { Trophy, Star, Award } from 'lucide-react';
 import { achievementsApi } from '../utils/api';
 import { Achievement } from '../utils/types';
 import toast from 'react-hot-toast';
@@ -35,11 +35,6 @@ const Achievements: React.FC = () => {
     return myAchievements.some(achievement => achievement.id === achievementId);
   };
 
-  const getEarnedDate = (achievementId: number) => {
-    const earned = myAchievements.find(achievement => achievement.id === achievementId);
-    return earned?.earned_at;
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
@@ -49,26 +44,8 @@ const Achievements: React.FC = () => {
     });
   };
 
-  const getConditionText = (conditionType: string, conditionValue: number) => {
-    switch (conditionType) {
-      case 'points':
-        return `Набрать ${conditionValue} баллов`;
-      case 'events':
-        return `Участвовать в ${conditionValue} мероприятиях`;
-      default:
-        return 'Особое условие';
-    }
-  };
-
-  const getConditionIcon = (conditionType: string) => {
-    switch (conditionType) {
-      case 'points':
-        return Star;
-      case 'events':
-        return Calendar;
-      default:
-        return Target;
-    }
+  const getConditionText = (points: number) => {
+    return `${points} баллов за достижение`;
   };
 
   const achievementsToShow = activeTab === 'earned' ? myAchievements : allAchievements;
@@ -160,8 +137,6 @@ const Achievements: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {achievementsToShow.map((achievement, index) => {
             const earned = isEarned(achievement.id);
-            const earnedDate = getEarnedDate(achievement.id);
-            const ConditionIcon = getConditionIcon(achievement.condition_type);
             
             return (
               <motion.div
@@ -186,8 +161,23 @@ const Achievements: React.FC = () => {
 
                 {/* Achievement Icon */}
                 <div className="text-center mb-4">
-                  <div className={`text-6xl mb-2 ${earned ? 'animate-bounce' : ''}`}>
-                    {achievement.icon}
+                  <div className={`mb-2 flex justify-center ${earned ? 'animate-bounce' : ''}`}>
+                    {achievement.icon && achievement.icon.startsWith('/images') ? (
+                      <img 
+                        src={achievement.icon}
+                        alt={achievement.title}
+                        className="w-16 h-16 object-contain"
+                        onError={(e) => {
+                          // Fallback к трофею если изображение не загружается
+                          console.error('Failed to load achievement icon:', achievement.icon);
+                          e.currentTarget.src = '/images/achievements/trophy-gold.svg';
+                        }}
+                      />
+                    ) : (
+                      <div className="text-6xl">
+                        {achievement.icon || '🏆'}
+                      </div>
+                    )}
                   </div>
                   <h3 className={`text-xl font-bold ${
                     earned ? 'text-yellow-800' : 'text-gray-800'
@@ -203,25 +193,25 @@ const Achievements: React.FC = () => {
                   {achievement.description}
                 </p>
 
-                {/* Condition */}
+                {/* Points */}
                 <div className={`flex items-center justify-center p-3 rounded-xl mb-4 ${
                   earned 
                     ? 'bg-yellow-100 text-yellow-800' 
                     : 'bg-gray-100 text-gray-700'
                 }`}>
-                  <ConditionIcon className="w-4 h-4 mr-2" />
+                  <Star className="w-4 h-4 mr-2" />
                   <span className="text-sm font-medium">
-                    {getConditionText(achievement.condition_type, achievement.condition_value)}
+                    {getConditionText(achievement.points)}
                   </span>
                 </div>
 
                 {/* Earned Date */}
-                {earned && earnedDate && (
+                {earned && achievement.awarded_at && (
                   <div className="text-center">
                     <div className="flex items-center justify-center text-yellow-700">
                       <Award className="w-4 h-4 mr-2" />
                       <span className="text-sm font-medium">
-                        Получено {formatDate(earnedDate)}
+                        Получено {formatDate(achievement.awarded_at)}
                       </span>
                     </div>
                   </div>

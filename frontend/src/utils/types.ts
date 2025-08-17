@@ -9,6 +9,7 @@ export interface User {
   class_letter: string;
   role: 'student' | 'admin';
   isAdmin: boolean;
+  avatar_url?: string;
   achievements_count?: number;
   events_count?: number;
   created_at: string;

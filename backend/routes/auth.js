@@ -246,4 +246,72 @@ router.post('/change-password', [
   }
 });
 
+// Обновление профиля пользователя
+router.put('/profile', [
+  auth,
+  body('first_name').optional().notEmpty().withMessage('Имя не может быть пустым'),
+  body('last_name').optional().notEmpty().withMessage('Фамилия не может быть пустой'),
+  body('avatar_id').optional().isString().withMessage('ID аватара должен быть строкой')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { first_name, last_name, class_grade, class_letter, avatar_id } = req.body;
+    const userId = req.user.id;
+
+    const updates = [];
+    const params = [];
+
+    if (first_name) {
+      updates.push('first_name = ?');
+      params.push(first_name);
+    }
+    if (last_name) {
+      updates.push('last_name = ?');
+      params.push(last_name);
+    }
+    if (class_grade !== undefined) {
+      updates.push('class_grade = ?');
+      params.push(class_grade);
+    }
+    if (class_letter !== undefined) {
+      updates.push('class_letter = ?');
+      params.push(class_letter);
+    }
+    if (avatar_id !== undefined) {
+      updates.push('avatar_url = ?');
+      params.push(avatar_id); // Сохраняем ID аватара в поле avatar_url
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ message: 'Нет данных для обновления' });
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(userId);
+
+    await db.query(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
+      params
+    );
+
+    // Получаем обновленные данные пользователя
+    const result = await db.query(
+      'SELECT id, login, first_name, last_name, class_grade, class_letter, role, avatar_url, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+
+    res.json({ 
+      message: 'Профиль обновлен', 
+      user: result.rows[0] 
+    });
+  } catch (error) {
+    console.error('Ошибка обновления профиля:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 module.exports = router;

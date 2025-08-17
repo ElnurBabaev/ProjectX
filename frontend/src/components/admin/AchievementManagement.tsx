@@ -10,8 +10,11 @@ import {
   Star,
   X,
   UserPlus,
-  UserMinus
+  UserMinus,
+  Image
 } from 'lucide-react';
+import AchievementIconSelector from '../AchievementIconSelector';
+import { getAchievementIconPath } from '../../config/simple-images';
 import toast from 'react-hot-toast';
 
 interface Achievement {
@@ -48,6 +51,8 @@ const AchievementManagement: React.FC = () => {
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [achievementUsers, setAchievementUsers] = useState<User[]>([]);
+  const [showIconSelector, setShowIconSelector] = useState(false);
+  const [iconSelectorMode, setIconSelectorMode] = useState<'create' | 'edit'>('create');
 
   const [newAchievement, setNewAchievement] = useState({
     title: '',
@@ -155,6 +160,16 @@ const AchievementManagement: React.FC = () => {
     }
   };
 
+  const handleIconSelect = (iconPath: string) => {
+    if (iconSelectorMode === 'create') {
+      setNewAchievement(prev => ({ ...prev, iconUrl: iconPath }));
+    } else if (iconSelectorMode === 'edit' && selectedAchievement) {
+      // Обновляем поле icon вместо iconUrl для редактирования
+      setSelectedAchievement(prev => prev ? { ...prev, icon: iconPath } : null);
+    }
+    setShowIconSelector(false);
+  };
+
   const createAchievement = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -208,7 +223,7 @@ const AchievementManagement: React.FC = () => {
         body: JSON.stringify({
           title: selectedAchievement.title,
           description: selectedAchievement.description,
-          icon: selectedAchievement.iconUrl || selectedAchievement.icon || '🏆',
+          icon: selectedAchievement.icon || '🏆',
           type: getTypeFromCategory(selectedAchievement.category || 'Спортивные'),
           points: selectedAchievement.points,
           badge_color: selectedAchievement.badge_color || '#FFD700'
@@ -416,23 +431,24 @@ const AchievementManagement: React.FC = () => {
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
-                  {achievement.iconUrl || achievement.icon ? (
-                    <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-2xl">
-                      {achievement.iconUrl ? (
-                        <img
-                          src={achievement.iconUrl}
-                          alt={achievement.title}
-                          className="w-12 h-12 rounded-full"
-                        />
-                      ) : (
-                        achievement.icon
-                      )}
-                    </div>
-                  ) : (
-                    <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-2xl">
+                    {achievement.icon && achievement.icon.startsWith('/images') ? (
+                      <img
+                        src={achievement.icon}
+                        alt={achievement.title}
+                        className="w-10 h-10 object-contain"
+                        onError={(e) => {
+                          console.error('Failed to load achievement icon:', achievement.icon);
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.parentElement!.innerHTML = '🏆';
+                        }}
+                      />
+                    ) : achievement.icon ? (
+                      <span>{achievement.icon}</span>
+                    ) : (
                       <Trophy className="w-6 h-6 text-yellow-600" />
-                    </div>
-                  )}
+                    )}
+                  </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-800">{achievement.title}</h3>
                     <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded">{achievement.category}</span>
@@ -534,13 +550,33 @@ const AchievementManagement: React.FC = () => {
                 onChange={(e) => setNewAchievement({ ...newAchievement, points: Number(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
               />
-              <input
-                type="url"
-                placeholder="Ссылка на иконку (опционально)"
-                value={newAchievement.iconUrl}
-                onChange={(e) => setNewAchievement({ ...newAchievement, iconUrl: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
-              />
+              
+              {/* Icon Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Иконка достижения
+                </label>
+                <div className="flex items-center space-x-4">
+                  {newAchievement.iconUrl && (
+                    <img 
+                      src={newAchievement.iconUrl} 
+                      alt="Выбранная иконка" 
+                      className="w-12 h-12 object-contain rounded-lg border"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIconSelectorMode('create');
+                      setShowIconSelector(true);
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    <Image className="w-4 h-4" />
+                    <span>Выбрать иконку</span>
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="flex space-x-4 mt-6">
               <button
@@ -605,13 +641,33 @@ const AchievementManagement: React.FC = () => {
                 onChange={(e) => setSelectedAchievement({ ...selectedAchievement, points: Number(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
               />
-              <input
-                type="url"
-                placeholder="Ссылка на иконку (опционально)"
-                value={selectedAchievement.iconUrl || ''}
-                onChange={(e) => setSelectedAchievement({ ...selectedAchievement, iconUrl: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
-              />
+              
+              {/* Icon Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Иконка достижения
+                </label>
+                <div className="flex items-center space-x-4">
+                  {selectedAchievement.icon && (
+                    <img 
+                      src={selectedAchievement.icon} 
+                      alt="Текущая иконка" 
+                      className="w-12 h-12 object-contain rounded-lg border"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIconSelectorMode('edit');
+                      setShowIconSelector(true);
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    <Image className="w-4 h-4" />
+                    <span>Изменить иконку</span>
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="flex space-x-4 mt-6">
               <button
@@ -702,6 +758,15 @@ const AchievementManagement: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Achievement Icon Selector Modal */}
+      {showIconSelector && (
+        <AchievementIconSelector
+          isOpen={showIconSelector}
+          onClose={() => setShowIconSelector(false)}
+          onSelect={handleIconSelect}
+        />
       )}
     </div>
   );

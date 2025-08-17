@@ -8,12 +8,15 @@ import {
   Trophy, 
   Eye, 
   EyeOff,
-  Save
+  Save,
+  Camera
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { eventsApi, achievementsApi, authApi } from '../utils/api';
 import { Event, Achievement } from '../utils/types';
 import { useForm } from 'react-hook-form';
+import AvatarSelector from '../components/AvatarSelector';
+import { getAvatarPath } from '../config/simple-images';
 import toast from 'react-hot-toast';
 
 interface PasswordFormData {
@@ -29,6 +32,8 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
 
@@ -77,6 +82,32 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleAvatarSelect = async (avatarId: string) => {
+    setAvatarLoading(true);
+    try {
+      await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ avatar_id: avatarId })
+      });
+      
+      // Обновляем локальное состояние пользователя
+      if (user) {
+        user.avatar_url = avatarId;
+      }
+      
+      toast.success('Аватар обновлен');
+    } catch (error) {
+      toast.error('Ошибка обновления аватара');
+      console.error('Avatar update error:', error);
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
@@ -110,8 +141,30 @@ const Profile: React.FC = () => {
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/20">
             <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
               {/* Avatar */}
-              <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
-                {user?.first_name?.charAt(0)}{user?.last_name?.charAt(0)}
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                  <img
+                    src={getAvatarPath(user?.avatar_url)}
+                    alt="Аватар"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback на инициалы если изображение не загружается
+                      e.currentTarget.style.display = 'none';
+                      const parent = e.currentTarget.parentNode as HTMLElement;
+                      if (parent) {
+                        parent.innerHTML = `<span class="text-white text-3xl font-bold">${user?.first_name?.charAt(0) || ''}${user?.last_name?.charAt(0) || ''}</span>`;
+                      }
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={() => setShowAvatarSelector(true)}
+                  disabled={avatarLoading}
+                  className="absolute -bottom-1 -right-1 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow-lg transition-colors disabled:opacity-50"
+                  title="Изменить аватар"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
               </div>
               
               {/* User Info */}
@@ -366,6 +419,15 @@ const Profile: React.FC = () => {
           )}
         </motion.div>
       </div>
+
+      {/* Avatar Selector Modal */}
+      <AvatarSelector
+        isOpen={showAvatarSelector}
+        onClose={() => setShowAvatarSelector(false)}
+        currentAvatar={user?.avatar_url}
+        onSelect={handleAvatarSelect}
+        isLoading={avatarLoading}
+      />
     </div>
   );
 };
