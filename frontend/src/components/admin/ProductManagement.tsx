@@ -12,6 +12,7 @@ import {
   Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ImageUploader from '../ImageUploader';
 
 interface Product {
   id: number;
@@ -34,6 +35,18 @@ const ProductManagement: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+  // Функция для получения полного URL изображения
+  const getFullImageUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url; // уже полный URL
+    if (url.startsWith('/uploads/')) {
+      const fullUrl = `http://localhost:5000${url}`;
+      console.log('🔧 Преобразование URL в ProductManagement:', url, '→', fullUrl);
+      return fullUrl;
+    }
+    return url; // внешняя ссылка или что-то еще
+  };
+
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
@@ -53,7 +66,7 @@ const ProductManagement: React.FC = () => {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/products', {
+      const response = await fetch('http://localhost:5000/api/products', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -75,13 +88,21 @@ const ProductManagement: React.FC = () => {
   const createProduct = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/products', {
+      const response = await fetch('http://localhost:5000/api/admin/products', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(newProduct)
+        body: JSON.stringify({
+          name: newProduct.name,
+          description: newProduct.description,
+          price: newProduct.price,
+          category: newProduct.category,
+          imageUrl: newProduct.imageUrl,
+          stock_quantity: newProduct.stock,
+          active: newProduct.active
+        })
       });
 
       if (!response.ok) {
@@ -109,9 +130,22 @@ const ProductManagement: React.FC = () => {
   const updateProduct = async () => {
     if (!selectedProduct) return;
 
+    console.log('🔄 Обновление товара:', {
+      id: selectedProduct.id,
+      data: {
+        name: selectedProduct.name,
+        description: selectedProduct.description,
+        price: selectedProduct.price,
+        category: selectedProduct.category,
+        imageUrl: selectedProduct.imageUrl,
+        stock_quantity: selectedProduct.stock,
+        active: selectedProduct.active
+      }
+    });
+
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/products/${selectedProduct.id}`, {
+      const response = await fetch(`http://localhost:5000/api/admin/products/${selectedProduct.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -123,13 +157,16 @@ const ProductManagement: React.FC = () => {
           price: selectedProduct.price,
           category: selectedProduct.category,
           imageUrl: selectedProduct.imageUrl,
-          stock: selectedProduct.stock,
+          stock_quantity: selectedProduct.stock,
           active: selectedProduct.active
         })
       });
 
+      console.log('📡 Ответ сервера:', response.status, response.statusText);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('❌ Ошибка от API:', errorData);
         throw new Error(errorData.message || 'Ошибка обновления товара');
       }
 
@@ -138,6 +175,7 @@ const ProductManagement: React.FC = () => {
       setSelectedProduct(null);
       toast.success('Товар обновлен успешно');
     } catch (error: any) {
+      console.error('❌ Ошибка обновления товара:', error);
       toast.error(error.message);
     }
   };
@@ -147,7 +185,7 @@ const ProductManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/products/${productId}`, {
+      const response = await fetch(`http://localhost:5000/api/admin/products/${productId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -170,7 +208,7 @@ const ProductManagement: React.FC = () => {
   const toggleProductStatus = async (productId: number, active: boolean) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/products/${productId}`, {
+      const response = await fetch(`http://localhost:5000/api/admin/products/${productId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -194,7 +232,7 @@ const ProductManagement: React.FC = () => {
   const viewPurchases = async (productId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/products/${productId}/purchases`, {
+      const response = await fetch(`http://localhost:5000/api/admin/products/${productId}/purchases`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -275,9 +313,25 @@ const ProductManagement: React.FC = () => {
           <div key={product.id} className={`bg-white rounded-lg shadow-sm border overflow-hidden ${product.active ? 'border-gray-200' : 'border-red-200 opacity-75'}`}>
             {product.imageUrl && (
               <img
-                src={product.imageUrl}
+                src={`${getFullImageUrl(product.imageUrl)}?t=${Date.now()}`}
                 alt={product.name}
                 className="w-full h-48 object-cover"
+                crossOrigin="anonymous"
+                onLoad={() => {
+                  console.log('✅ Изображение товара в админке загружено:', product.imageUrl, '-> Полный URL:', getFullImageUrl(product.imageUrl || ''));
+                }}
+                onError={(e) => {
+                  console.error('❌ Ошибка загрузки изображения товара в админке:', product.imageUrl, '-> Полный URL:', getFullImageUrl(product.imageUrl || ''));
+                  // Попробуем загрузить через fetch для диагностики
+                  fetch(getFullImageUrl(product.imageUrl || ''))
+                    .then(response => {
+                      console.log('📡 Fetch результат для товара в админке:', response.status, response.statusText);
+                    })
+                    .catch(fetchError => {
+                      console.error('📡 Fetch ошибка для товара в админке:', fetchError);
+                    });
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             )}
             <div className="p-6">
@@ -409,12 +463,10 @@ const ProductManagement: React.FC = () => {
                 onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               />
-              <input
-                type="url"
-                placeholder="Ссылка на изображение (опционально)"
-                value={newProduct.imageUrl}
-                onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              <ImageUploader
+                currentImage={newProduct.imageUrl}
+                onImageChange={(imageUrl) => setNewProduct({ ...newProduct, imageUrl })}
+                label="Изображение товара"
               />
               <label className="flex items-center space-x-2">
                 <input
@@ -496,12 +548,10 @@ const ProductManagement: React.FC = () => {
                 onChange={(e) => setSelectedProduct({ ...selectedProduct, stock: Number(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               />
-              <input
-                type="url"
-                placeholder="Ссылка на изображение (опционально)"
-                value={selectedProduct.imageUrl || ''}
-                onChange={(e) => setSelectedProduct({ ...selectedProduct, imageUrl: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              <ImageUploader
+                currentImage={selectedProduct.imageUrl || ''}
+                onImageChange={(imageUrl) => setSelectedProduct({ ...selectedProduct, imageUrl })}
+                label="Изображение товара"
               />
               <label className="flex items-center space-x-2">
                 <input

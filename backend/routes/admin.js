@@ -454,6 +454,129 @@ router.get('/products', adminAuth, async (req, res) => {
   }
 });
 
+// Создание товара (Admin)
+router.post('/products', [
+  adminAuth,
+  body('name').notEmpty().withMessage('Название товара обязательно'),
+  body('description').notEmpty().withMessage('Описание товара обязательно'),
+  body('price').isNumeric().withMessage('Цена должна быть числом'),
+  body('stock_quantity').isInt({ min: 0 }).withMessage('Количество на складе должно быть неотрицательным числом'),
+  body('category').notEmpty().withMessage('Категория обязательна')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { name, description, price, stock_quantity, category, imageUrl, active } = req.body;
+
+    const result = await db.query(`
+      INSERT INTO products (name, description, price, stock_quantity, category, image_url, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [name, description, parseFloat(price), stock_quantity, category, imageUrl || null, active !== undefined ? active : 1]);
+
+    res.status(201).json({
+      message: 'Товар создан',
+      product: {
+        id: result.insertId,
+        name,
+        description,
+        price: parseFloat(price),
+        stock_quantity,
+        category,
+        image_url: imageUrl,
+        is_active: active !== undefined ? active : 1
+      }
+    });
+  } catch (error) {
+    console.error('Ошибка создания товара:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Обновление товара (Admin)
+router.put('/products/:id', [
+  adminAuth,
+  body('name').notEmpty().withMessage('Название товара обязательно'),
+  body('description').notEmpty().withMessage('Описание товара обязательно'),
+  body('price').isNumeric().withMessage('Цена должна быть числом'),
+  body('stock_quantity').isInt({ min: 0 }).withMessage('Количество на складе должно быть неотрицательным числом'),
+  body('category').notEmpty().withMessage('Категория обязательна')
+], async (req, res) => {
+  try {
+    console.log(`🔄 Обновление товара ${req.params.id}:`, req.body);
+    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.error('❌ Ошибки валидации:', errors.array());
+      return res.status(400).json({ 
+        message: 'Ошибка валидации данных',
+        errors: errors.array() 
+      });
+    }
+
+    const { name, description, price, stock_quantity, category, imageUrl, active } = req.body;
+
+    const result = await db.query(`
+      UPDATE products 
+      SET name = ?, description = ?, price = ?, stock_quantity = ?, category = ?, image_url = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [name, description, parseFloat(price), stock_quantity, category, imageUrl || null, active !== undefined ? active : 1, req.params.id]);
+
+    if (result.affectedRows === 0) {
+      console.error('❌ Товар не найден:', req.params.id);
+      return res.status(404).json({ message: 'Товар не найден' });
+    }
+
+    console.log('✅ Товар успешно обновлен:', req.params.id);
+    res.json({ message: 'Товар обновлен' });
+  } catch (error) {
+    console.error('❌ Ошибка обновления товара:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Удаление товара (Admin - мягкое удаление)
+router.delete('/products/:id', adminAuth, async (req, res) => {
+  try {
+    const result = await db.query(
+      'UPDATE products SET is_active = 0 WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Товар не найден' });
+    }
+
+    res.json({ message: 'Товар удален' });
+  } catch (error) {
+    console.error('Ошибка удаления товара:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Получение покупок товара (Admin)
+router.get('/products/:id/purchases', adminAuth, async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT u.first_name as firstName, u.last_name as lastName, 
+             u.class_grade as classGrade, u.class_letter as classLetter,
+             oi.quantity, oi.price, o.created_at as purchaseDate
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      JOIN users u ON o.user_id = u.id
+      WHERE oi.product_id = ?
+      ORDER BY o.created_at DESC
+    `, [req.params.id]);
+
+    res.json({ purchases: result.rows });
+  } catch (error) {
+    console.error('Ошибка получения покупок товара:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 // === УПРАВЛЕНИЕ ДОСТИЖЕНИЯМИ (Admin) ===
 
 // Получение всех достижений для админа

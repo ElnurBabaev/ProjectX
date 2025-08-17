@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, Users, Trophy, Plus } from 'lucide-react';
+import { Calendar, Clock, Users, Plus } from 'lucide-react';
 import { eventsApi } from '../utils/api';
 import { Event } from '../utils/types';
 import toast from 'react-hot-toast';
@@ -9,6 +9,18 @@ const Events: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+
+  // Функция для получения полного URL изображения
+  const getFullImageUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url; // уже полный URL
+    if (url.startsWith('/uploads/')) {
+      const fullUrl = `http://localhost:5000${url}`;
+      console.log('🔧 Преобразование URL в Events:', url, '→', fullUrl);
+      return fullUrl;
+    }
+    return url; // внешняя ссылка или что-то еще
+  };
 
   useEffect(() => {
     loadEvents();
@@ -53,9 +65,8 @@ const Events: React.FC = () => {
     { value: 'акция', label: 'Акции', color: 'bg-orange-100 text-orange-700' },
   ];
 
-  const filteredEvents = events.filter(event => 
-    filter === 'all' || event.type === filter
-  );
+  // Убираем фильтрацию по type, так как этого свойства нет в типе Event
+  const filteredEvents = events; // Показываем все события
 
   if (loading) {
     return (
@@ -119,23 +130,39 @@ const Events: React.FC = () => {
               transition={{ delay: 0.1 * index }}
               className="card hover:shadow-2xl"
             >
-              {/* Event Type Badge */}
-              <div className="flex justify-between items-start mb-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  eventTypes.find(t => t.value === event.type)?.color || 'bg-gray-100 text-gray-700'
-                }`}>
-                  {event.type}
-                </span>
-                <div className="flex items-center text-yellow-600">
-                  <Trophy className="w-4 h-4 mr-1" />
-                  <span className="text-sm font-semibold">+{event.points}</span>
-                </div>
-              </div>
-
               {/* Event Title */}
               <h3 className="text-xl font-bold text-gray-800 mb-3 line-clamp-2">
                 {event.title}
               </h3>
+
+              {/* Event Image */}
+              {event.image_url && (
+                <div className="mb-4 rounded-lg overflow-hidden">
+                  <img
+                    src={`${getFullImageUrl(event.image_url)}?t=${Date.now()}`}
+                    alt={event.title}
+                    className="w-full h-48 object-cover"
+                    crossOrigin="anonymous"
+                    onLoad={() => {
+                      console.log('✅ Изображение события загружено:', event.image_url, '-> Полный URL:', getFullImageUrl(event.image_url || ''));
+                    }}
+                    onError={(e) => {
+                      console.error('❌ Ошибка загрузки изображения события:', event.image_url, '-> Полный URL:', getFullImageUrl(event.image_url || ''));
+                      console.error('❌ Детали ошибки:', e);
+                      // Попробуем загрузить через fetch для диагностики
+                      fetch(getFullImageUrl(event.image_url || ''))
+                        .then(response => {
+                          console.log('📡 Fetch результат для события:', response.status, response.statusText);
+                          console.log('📡 Fetch заголовки для события:', [...response.headers.entries()]);
+                        })
+                        .catch(fetchError => {
+                          console.error('📡 Fetch ошибка для события:', fetchError);
+                        });
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
 
               {/* Event Description */}
               <p className="text-gray-600 mb-4 line-clamp-3">
@@ -151,17 +178,19 @@ const Events: React.FC = () => {
                   </span>
                 </div>
                 
-                <div className="flex items-center text-gray-600">
-                  <Clock className="w-4 h-4 mr-2" />
-                  <span className="text-sm">
-                    до {formatDate(event.end_date)}
-                  </span>
-                </div>
+                {event.end_date && (
+                  <div className="flex items-center text-gray-600">
+                    <Clock className="w-4 h-4 mr-2" />
+                    <span className="text-sm">
+                      до {formatDate(event.end_date)}
+                    </span>
+                  </div>
+                )}
                 
                 <div className="flex items-center text-gray-600">
                   <Users className="w-4 h-4 mr-2" />
                   <span className="text-sm">
-                    {event.current_participants || 0} / {event.max_participants} участников
+                    {event.current_participants || 0} / {event.max_participants || 0} участников
                   </span>
                 </div>
               </div>
@@ -173,7 +202,7 @@ const Events: React.FC = () => {
                     className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
                     style={{ 
                       width: `${Math.min(
-                        ((event.current_participants || 0) / event.max_participants) * 100, 
+                        ((event.current_participants || 0) / (event.max_participants || 1)) * 100, 
                         100
                       )}%` 
                     }}
@@ -184,15 +213,15 @@ const Events: React.FC = () => {
               {/* Register Button */}
               <button
                 onClick={() => registerForEvent(event.id)}
-                disabled={(event.current_participants || 0) >= event.max_participants}
+                disabled={(event.current_participants || 0) >= (event.max_participants || 0)}
                 className={`w-full btn ${
-                  (event.current_participants || 0) >= event.max_participants
+                  (event.current_participants || 0) >= (event.max_participants || 0)
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'btn-primary'
                 } flex items-center justify-center`}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                {(event.current_participants || 0) >= event.max_participants
+                {(event.current_participants || 0) >= (event.max_participants || 0)
                   ? 'Мест нет'
                   : 'Зарегистрироваться'
                 }

@@ -57,6 +57,18 @@ const EventManagement: React.FC = () => {
     imageUrl: ''
   });
 
+  // Функция для получения полного URL изображения
+  const getFullImageUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url; // уже полный URL
+    if (url.startsWith('/uploads/')) {
+      const fullUrl = `http://localhost:5000${url}`;
+      console.log('🔧 Преобразование URL:', url, '→', fullUrl);
+      return fullUrl;
+    }
+    return url; // внешняя ссылка или что-то еще
+  };
+
   useEffect(() => {
     console.log('EventManagement: Component mounted, loading events...');
     fetchEvents();
@@ -345,9 +357,27 @@ const EventManagement: React.FC = () => {
           <div key={event.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             {event.image_url && (
               <img
-                src={event.image_url}
+                src={`${getFullImageUrl(event.image_url)}?t=${Date.now()}`}
                 alt={event.title}
                 className="w-full h-48 object-cover"
+                crossOrigin="anonymous"
+                onLoad={() => {
+                  console.log('✅ Изображение загружено:', event.image_url, '-> Полный URL:', getFullImageUrl(event.image_url || ''));
+                }}
+                onError={(e) => {
+                  console.error('❌ Ошибка загрузки изображения:', event.image_url, '-> Полный URL:', getFullImageUrl(event.image_url || ''));
+                  console.error('❌ Детали ошибки:', e);
+                  // Попробуем загрузить через fetch для диагностики
+                  fetch(getFullImageUrl(event.image_url || ''))
+                    .then(response => {
+                      console.log('📡 Fetch результат:', response.status, response.statusText);
+                      console.log('📡 Fetch заголовки:', [...response.headers.entries()]);
+                    })
+                    .catch(fetchError => {
+                      console.error('📡 Fetch ошибка:', fetchError);
+                    });
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             )}
             <div className="p-6">

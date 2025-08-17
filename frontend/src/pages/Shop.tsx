@@ -14,6 +14,17 @@ const Shop: React.FC = () => {
   const [activeTab, setActiveTab] = useState('products');
   const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null);
 
+  // Функция для получения полного URL изображения
+  const getFullImageUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url; // уже полный URL
+    if (url.startsWith('/uploads/')) {
+      const fullUrl = `http://localhost:5000${url}`;
+      console.log('🔧 Преобразование URL в Shop:', url, '→', fullUrl);
+      return fullUrl;
+    }
+    return url; // внешняя ссылка или что-то еще
+  };
 
   useEffect(() => {
     loadData();
@@ -173,13 +184,36 @@ const Shop: React.FC = () => {
                 transition={{ delay: 0.1 * index }}
                 className="card hover:shadow-2xl"
               >
-                {/* Product Image Placeholder */}
-                <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl mb-4 flex items-center justify-center">
+                {/* Product Image */}
+                <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl mb-4 flex items-center justify-center overflow-hidden">
                   {product.image_url ? (
                     <img 
-                      src={product.image_url} 
+                      src={`${getFullImageUrl(product.image_url)}?t=${Date.now()}`}
                       alt={product.name}
                       className="w-full h-full object-cover rounded-xl"
+                      crossOrigin="anonymous"
+                      onLoad={() => {
+                        console.log('✅ Изображение товара загружено:', product.image_url, '-> Полный URL:', getFullImageUrl(product.image_url || ''));
+                      }}
+                      onError={(e) => {
+                        console.error('❌ Ошибка загрузки изображения товара:', product.image_url, '-> Полный URL:', getFullImageUrl(product.image_url || ''));
+                        // Попробуем загрузить через fetch для диагностики
+                        fetch(getFullImageUrl(product.image_url || ''))
+                          .then(response => {
+                            console.log('📡 Fetch результат для товара:', response.status, response.statusText);
+                          })
+                          .catch(fetchError => {
+                            console.error('📡 Fetch ошибка для товара:', fetchError);
+                          });
+                        // Показываем иконку вместо сломанного изображения
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement?.appendChild(
+                          Object.assign(document.createElement('div'), {
+                            className: 'flex items-center justify-center w-full h-full',
+                            innerHTML: '<svg class="w-16 h-16 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm5 6a2 2 0 100-4 2 2 0 000 4zm-1.5 2.5A1.5 1.5 0 018 11h4a1.5 1.5 0 011.5 1.5v1a1.5 1.5 0 01-1.5 1.5H8a1.5 1.5 0 01-1.5-1.5v-1z" clip-rule="evenodd"></path></svg>'
+                          })
+                        );
+                      }}
                     />
                   ) : (
                     <Package className="w-16 h-16 text-gray-400" />
@@ -306,12 +340,25 @@ const Shop: React.FC = () => {
                 <div className="space-y-2">
                   {order.items.map((item, itemIndex) => (
                     <div key={itemIndex} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg flex items-center justify-center">
+                      <div className="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
                         {item.image_url ? (
                           <img 
-                            src={item.image_url} 
+                            src={`${getFullImageUrl(item.image_url)}?t=${Date.now()}`}
                             alt={item.name}
                             className="w-full h-full object-cover rounded-lg"
+                            crossOrigin="anonymous"
+                            onLoad={() => {
+                              console.log('✅ Изображение товара в заказе загружено:', item.image_url);
+                            }}
+                            onError={(e) => {
+                              console.error('❌ Ошибка загрузки изображения товара в заказе:', item.image_url);
+                              e.currentTarget.style.display = 'none';
+                              // Показываем иконку Package вместо сломанного изображения
+                              const iconElement = document.createElement('div');
+                              iconElement.innerHTML = '<svg class="w-6 h-6 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm5 6a2 2 0 100-4 2 2 0 000 4zm-1.5 2.5A1.5 1.5 0 018 11h4a1.5 1.5 0 011.5 1.5v1a1.5 1.5 0 01-1.5 1.5H8a1.5 1.5 0 01-1.5-1.5v-1z" clip-rule="evenodd"></path></svg>';
+                              iconElement.className = 'flex items-center justify-center w-full h-full';
+                              e.currentTarget.parentElement?.appendChild(iconElement);
+                            }}
                           />
                         ) : (
                           <Package className="w-6 h-6 text-gray-500" />
