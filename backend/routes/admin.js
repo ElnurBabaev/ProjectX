@@ -64,7 +64,7 @@ router.get('/statistics', adminAuth, async (req, res) => {
 router.get('/users', adminAuth, async (req, res) => {
   try {
     const { role, search } = req.query;
-    let query = 'SELECT id, username, full_name, class, role, created_at FROM users';
+    let query = 'SELECT id, login, first_name, last_name, class_grade, class_letter, role, created_at FROM users';
     const params = [];
 
     if (role) {
@@ -74,9 +74,9 @@ router.get('/users', adminAuth, async (req, res) => {
 
     if (search) {
       query += (params.length > 0 ? ' AND' : ' WHERE');
-      query += ' (username LIKE ? OR full_name LIKE ?)';
+      query += ' (login LIKE ? OR first_name LIKE ? OR last_name LIKE ?)';
       const searchParam = `%${search}%`;
-      params.push(searchParam, searchParam);
+      params.push(searchParam, searchParam, searchParam);
     }
 
     query += ' ORDER BY created_at DESC';
@@ -92,9 +92,10 @@ router.get('/users', adminAuth, async (req, res) => {
 // Создание нового пользователя
 router.post('/users', [
   adminAuth,
-  body('username').isLength({ min: 3, max: 50 }).withMessage('Логин должен быть от 3 до 50 символов'),
+  body('login').isLength({ min: 3, max: 50 }).withMessage('Логин должен быть от 3 до 50 символов'),
   body('password').isLength({ min: 6 }).withMessage('Пароль должен быть не менее 6 символов'),
-  body('full_name').notEmpty().withMessage('Полное имя обязательно'),
+  body('first_name').notEmpty().withMessage('Имя обязательно'),
+  body('last_name').notEmpty().withMessage('Фамилия обязательна'),
   body('role').optional().isIn(['student', 'admin']).withMessage('Неверная роль')
 ], async (req, res) => {
   try {
@@ -103,12 +104,12 @@ router.post('/users', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, password, full_name, class: userClass, role } = req.body;
+    const { login, password, first_name, last_name, class_grade, class_letter, role } = req.body;
 
     // Проверяем уникальность
     const existingResult = await db.query(
-      'SELECT id FROM users WHERE username = ?',
-      [username]
+      'SELECT id FROM users WHERE login = ?',
+      [login]
     );
     
     if (existingResult.rows.length > 0) {
@@ -118,17 +119,19 @@ router.post('/users', [
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const result = await db.query(`
-      INSERT INTO users (username, password, full_name, class, role)
-      VALUES (?, ?, ?, ?, ?)
-    `, [username, hashedPassword, full_name, userClass || '', role || 'student']);
+      INSERT INTO users (login, password, first_name, last_name, class_grade, class_letter, role)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [login, hashedPassword, first_name, last_name, class_grade || null, class_letter || null, role || 'student']);
 
     res.status(201).json({
       message: 'Пользователь успешно создан',
       user: {
         id: result.insertId,
-        username,
-        full_name,
-        class: userClass || '',
+        login,
+        first_name,
+        last_name,
+        class_grade: class_grade || null,
+        class_letter: class_letter || null,
         role: role || 'student'
       }
     });
@@ -141,8 +144,9 @@ router.post('/users', [
 // Обновление пользователя
 router.put('/users/:id', [
   adminAuth,
-  body('username').optional().isLength({ min: 3, max: 50 }),
-  body('full_name').optional().notEmpty(),
+  body('login').optional().isLength({ min: 3, max: 50 }),
+  body('first_name').optional().notEmpty(),
+  body('last_name').optional().notEmpty(),
   body('role').optional().isIn(['student', 'admin'])
 ], async (req, res) => {
   try {
@@ -152,7 +156,7 @@ router.put('/users/:id', [
     }
 
     const userId = req.params.id;
-    const { username, full_name, class: userClass, role } = req.body;
+    const { login, first_name, last_name, class_grade, class_letter, role } = req.body;
 
     // Проверяем существование пользователя
     const userResult = await db.query('SELECT id FROM users WHERE id = ?', [userId]);
@@ -161,10 +165,10 @@ router.put('/users/:id', [
     }
 
     // Проверяем уникальность при обновлении
-    if (username) {
+    if (login) {
       const existingResult = await db.query(
-        'SELECT id FROM users WHERE username = ? AND id != ?',
-        [username, userId]
+        'SELECT id FROM users WHERE login = ? AND id != ?',
+        [login, userId]
       );
       
       if (existingResult.rows.length > 0) {
@@ -175,17 +179,25 @@ router.put('/users/:id', [
     const updates = [];
     const params = [];
 
-    if (username) {
-      updates.push('username = ?');
-      params.push(username);
+    if (login) {
+      updates.push('login = ?');
+      params.push(login);
     }
-    if (full_name) {
-      updates.push('full_name = ?');
-      params.push(full_name);
+    if (first_name) {
+      updates.push('first_name = ?');
+      params.push(first_name);
     }
-    if (userClass !== undefined) {
-      updates.push('class = ?');
-      params.push(userClass);
+    if (last_name) {
+      updates.push('last_name = ?');
+      params.push(last_name);
+    }
+    if (class_grade !== undefined) {
+      updates.push('class_grade = ?');
+      params.push(class_grade);
+    }
+    if (class_letter !== undefined) {
+      updates.push('class_letter = ?');
+      params.push(class_letter);
     }
     if (role) {
       updates.push('role = ?');
@@ -320,9 +332,11 @@ router.get('/users-stats', adminAuth, async (req, res) => {
     const result = await db.query(`
       SELECT 
         u.id,
-        u.username,
-        u.full_name,
-        u.class,
+        u.login,
+        u.first_name,
+        u.last_name,
+        u.class_grade,
+        u.class_letter,
         u.role,
         (SELECT COUNT(*) FROM event_registrations er WHERE er.user_id = u.id) as events_count,
         (SELECT COUNT(*) FROM user_achievements ua WHERE ua.user_id = u.id) as achievements_count,
@@ -343,9 +357,11 @@ router.get('/export/users', adminAuth, async (req, res) => {
     const result = await db.query(`
       SELECT 
         u.id,
-        u.username,
-        u.full_name,
-        u.class,
+        u.login,
+        u.first_name,
+        u.last_name,
+        u.class_grade,
+        u.class_letter,
         u.role,
         (SELECT COUNT(*) FROM event_registrations er WHERE er.user_id = u.id) as events_count,
         (SELECT COUNT(*) FROM user_achievements ua WHERE ua.user_id = u.id) as achievements_count,
@@ -366,9 +382,9 @@ router.get('/export/users', adminAuth, async (req, res) => {
 });
 
 function generateUsersCSV(users) {
-    const header = 'ID,Логин,Полное имя,Класс,Роль,Участие в событиях,Достижения,Дата создания\n';
+    const header = 'ID,Логин,Имя,Фамилия,Класс,Роль,Участие в событиях,Достижения,Дата создания\n';
   const rows = users.map(user => 
-    `${user.id},"${user.username}","${user.full_name}","${user.class}","${user.role}",${user.events_count},${user.achievements_count},"${user.created_at}"`
+    `${user.id},"${user.login}","${user.first_name}","${user.last_name}","${user.class_grade || ''}${user.class_letter || ''}","${user.role}",${user.events_count},${user.achievements_count},"${user.created_at}"`
   ).join('\n');
   return header + rows;
 }

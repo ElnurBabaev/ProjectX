@@ -231,7 +231,7 @@ router.delete('/:id', adminAuth, async (req, res) => {
 router.get('/:id/participants', adminAuth, async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT u.id, u.username, u.full_name, u.class, er.status, er.registered_at
+      SELECT u.id, u.login, u.first_name, u.last_name, u.class_grade, u.class_letter, er.status, er.registered_at
       FROM users u
       JOIN event_registrations er ON u.id = er.user_id
       WHERE er.event_id = ?

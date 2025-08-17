@@ -8,7 +8,6 @@ import {
   Users,
   Clock,
   MapPin,
-  Star,
   X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -17,13 +16,13 @@ interface Event {
   id: number;
   title: string;
   description: string;
-  date: string;
-  endDate?: string;
+  start_date: string;
+  end_date?: string;
   location: string;
-  maxParticipants: number;
-  pointsReward: number;
-  imageUrl?: string;
-  participantCount?: number;
+  max_participants: number;
+  image_url?: string;
+  current_participants?: number;
+  status?: string;
 }
 
 const EventManagement: React.FC = () => {
@@ -41,7 +40,6 @@ const EventManagement: React.FC = () => {
     endDate: '',
     location: '',
     maxParticipants: 50,
-    pointsReward: 10,
     imageUrl: ''
   });
 
@@ -92,13 +90,21 @@ const EventManagement: React.FC = () => {
   const createEvent = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/events', {
+      const response = await fetch('/api/events', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(newEvent)
+        body: JSON.stringify({
+          title: newEvent.title,
+          description: newEvent.description,
+          start_date: newEvent.date,
+          end_date: newEvent.endDate || null,
+          location: newEvent.location,
+          max_participants: newEvent.maxParticipants,
+          image_url: newEvent.imageUrl || null
+        })
       });
 
       if (!response.ok) {
@@ -115,7 +121,6 @@ const EventManagement: React.FC = () => {
         endDate: '',
         location: '',
         maxParticipants: 50,
-        pointsReward: 10,
         imageUrl: ''
       });
       toast.success('Событие создано успешно');
@@ -129,7 +134,7 @@ const EventManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/events/${selectedEvent.id}`, {
+      const response = await fetch(`/api/events/${selectedEvent.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -138,12 +143,11 @@ const EventManagement: React.FC = () => {
         body: JSON.stringify({
           title: selectedEvent.title,
           description: selectedEvent.description,
-          date: selectedEvent.date,
-          endDate: selectedEvent.endDate,
+          start_date: selectedEvent.start_date,
+          end_date: selectedEvent.end_date || null,
           location: selectedEvent.location,
-          maxParticipants: selectedEvent.maxParticipants,
-          pointsReward: selectedEvent.pointsReward,
-          imageUrl: selectedEvent.imageUrl
+          max_participants: selectedEvent.max_participants,
+          image_url: selectedEvent.image_url || null
         })
       });
 
@@ -166,7 +170,7 @@ const EventManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/events/${eventId}`, {
+      const response = await fetch(`/api/events/${eventId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -187,21 +191,48 @@ const EventManagement: React.FC = () => {
   };
 
   const viewParticipants = async (eventId: number) => {
+    console.log('viewParticipants called with eventId:', eventId);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/events/${eventId}/participants`, {
+      console.log('Token exists:', !!token);
+      
+      if (!token) {
+        toast.error('Необходима авторизация');
+        return;
+      }
+
+      console.log('Making request to:', `/api/events/${eventId}/participants`);
+      const response = await fetch(`/api/events/${eventId}/participants`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (!response.ok) throw new Error('Ошибка загрузки участников');
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Ошибка загрузки участников' }));
+        throw new Error(errorData.message || 'Ошибка загрузки участников');
+      }
       
       const data = await response.json();
-      alert(`Участники события:\n${data.participants.map((p: any) => `${p.firstName} ${p.lastName} (${p.classGrade}${p.classLetter})`).join('\n')}`);
+      console.log('Participants data:', data);
+      
+      if (!data.participants || data.participants.length === 0) {
+        alert('На это событие пока никто не зарегистрирован');
+        return;
+      }
+
+      const participantsList = data.participants.map((p: any) => 
+        `${p.first_name} ${p.last_name} (${p.class_grade || ''}${p.class_letter || ''})`
+      ).join('\n');
+      
+      alert(`Участники события:\n${participantsList}`);
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('Error in viewParticipants:', error);
+      toast.error(error.message || 'Ошибка загрузки участников');
     }
   };
 
@@ -223,19 +254,6 @@ const EventManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div style={{ padding: '20px', background: 'white', border: '1px solid #ccc', borderRadius: '8px' }}>
-        <h1 style={{ color: 'blue', fontSize: '24px', marginBottom: '10px' }}>
-          ТЕСТ: EventManagement компонент загружается!
-        </h1>
-        <p>Loading: {loading ? 'ДА' : 'НЕТ'}</p>
-        <p>Количество событий: {events.length}</p>
-        {events.length > 0 && (
-          <div>
-            <h3>Первое событие:</h3>
-            <p>{JSON.stringify(events[0], null, 2)}</p>
-          </div>
-        )}
-      </div>
       
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -270,9 +288,9 @@ const EventManagement: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredEvents.map((event) => (
           <div key={event.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            {event.imageUrl && (
+            {event.image_url && (
               <img
-                src={event.imageUrl}
+                src={event.image_url}
                 alt={event.title}
                 className="w-full h-48 object-cover"
               />
@@ -284,7 +302,7 @@ const EventManagement: React.FC = () => {
               <div className="space-y-2 text-sm text-gray-500 mb-4">
                 <div className="flex items-center space-x-2">
                   <Clock className="w-4 h-4" />
-                  <span>{new Date(event.date).toLocaleDateString('ru-RU')}</span>
+                  <span>{new Date(event.start_date).toLocaleDateString('ru-RU')}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MapPin className="w-4 h-4" />
@@ -292,11 +310,7 @@ const EventManagement: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Users className="w-4 h-4" />
-                  <span>{event.participantCount || 0} / {event.maxParticipants}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Star className="w-4 h-4" />
-                  <span>{event.pointsReward} баллов</span>
+                  <span>{event.current_participants || 0} / {event.max_participants}</span>
                 </div>
               </div>
 
@@ -392,13 +406,6 @@ const EventManagement: React.FC = () => {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               />
               <input
-                type="number"
-                placeholder="Баллы за участие"
-                value={newEvent.pointsReward}
-                onChange={(e) => setNewEvent({ ...newEvent, pointsReward: Number(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-              />
-              <input
                 type="url"
                 placeholder="Ссылка на изображение (опционально)"
                 value={newEvent.imageUrl}
@@ -454,14 +461,14 @@ const EventManagement: React.FC = () => {
               />
               <input
                 type="datetime-local"
-                value={selectedEvent.date}
-                onChange={(e) => setSelectedEvent({ ...selectedEvent, date: e.target.value })}
+                value={selectedEvent.start_date}
+                onChange={(e) => setSelectedEvent({ ...selectedEvent, start_date: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               />
               <input
                 type="datetime-local"
-                value={selectedEvent.endDate || ''}
-                onChange={(e) => setSelectedEvent({ ...selectedEvent, endDate: e.target.value })}
+                value={selectedEvent.end_date || ''}
+                onChange={(e) => setSelectedEvent({ ...selectedEvent, end_date: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               />
               <input
@@ -474,22 +481,15 @@ const EventManagement: React.FC = () => {
               <input
                 type="number"
                 placeholder="Максимум участников"
-                value={selectedEvent.maxParticipants}
-                onChange={(e) => setSelectedEvent({ ...selectedEvent, maxParticipants: Number(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-              />
-              <input
-                type="number"
-                placeholder="Баллы за участие"
-                value={selectedEvent.pointsReward}
-                onChange={(e) => setSelectedEvent({ ...selectedEvent, pointsReward: Number(e.target.value) })}
+                value={selectedEvent.max_participants}
+                onChange={(e) => setSelectedEvent({ ...selectedEvent, max_participants: Number(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               />
               <input
                 type="url"
                 placeholder="Ссылка на изображение (опционально)"
-                value={selectedEvent.imageUrl || ''}
-                onChange={(e) => setSelectedEvent({ ...selectedEvent, imageUrl: e.target.value })}
+                value={selectedEvent.image_url || ''}
+                onChange={(e) => setSelectedEvent({ ...selectedEvent, image_url: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               />
             </div>
