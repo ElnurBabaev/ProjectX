@@ -387,20 +387,6 @@ const AchievementManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div style={{ padding: '20px', background: 'white', border: '1px solid #ccc', borderRadius: '8px' }}>
-        <h1 style={{ color: 'red', fontSize: '24px', marginBottom: '10px' }}>
-          ТЕСТ: AchievementManagement компонент загружается!
-        </h1>
-        <p>Loading: {loading ? 'ДА' : 'НЕТ'}</p>
-        <p>Количество достижений: {achievements.length}</p>
-        {achievements.length > 0 && (
-          <div>
-            <h3>Первое достижение:</h3>
-            <p>{JSON.stringify(achievements[0], null, 2)}</p>
-          </div>
-        )}
-      </div>
-      
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">

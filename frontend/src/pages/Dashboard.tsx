@@ -5,24 +5,68 @@ import { useAuth } from '../contexts/AuthContext';
 import { productsApi } from '../utils/api';
 import { Order } from '../utils/types';
 
+interface Activity {
+  type: 'achievement' | 'event';
+  title: string;
+  points: number;
+  created_at: string;
+  action_type: string;
+  icon?: string;
+}
+
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadOrders();
+    loadData();
   }, []);
 
-  const loadOrders = async () => {
+  const loadData = async () => {
     try {
-      const ordersResponse = await productsApi.getMyOrders();
+      const [ordersResponse, activitiesResponse] = await Promise.all([
+        productsApi.getMyOrders(),
+        fetch('http://localhost:5000/api/auth/recent-activity', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      ]);
+      
       setOrders(ordersResponse.data || []);
+      
+      if (activitiesResponse.ok) {
+        const activitiesData = await activitiesResponse.json();
+        setActivities(activitiesData.activities || []);
+      }
     } catch (error) {
-      console.error('Ошибка загрузки заказов:', error);
+      console.error('Ошибка загрузки данных:', error);
       setOrders([]);
+      setActivities([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      return 'Только что';
+    } else if (diffInHours < 24) {
+      return `${diffInHours} ${diffInHours === 1 ? 'час' : diffInHours < 5 ? 'часа' : 'часов'} назад`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      if (diffInDays < 7) {
+        return `${diffInDays} ${diffInDays === 1 ? 'день' : diffInDays < 5 ? 'дня' : 'дней'} назад`;
+      } else {
+        return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+      }
     }
   };
 
@@ -198,32 +242,52 @@ const Dashboard: React.FC = () => {
             Последняя активность
           </h2>
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-white/20">
-            <div className="space-y-4">
-              {[1, 2, 3].map((item, index) => (
-                <motion.div
-                  key={item}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 * index }}
-                  className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-100"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center mr-4">
-                    <Calendar className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-800">
-                      Участие в олимпиаде по математике
-                    </h4>
-                    <p className="text-gray-600 text-sm">
-                      Заработано +50 баллов • 2 часа назад
-                    </p>
-                  </div>
-                  <div className="text-green-600 font-semibold">
-                    +50
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            {activities.length > 0 ? (
+              <div className="space-y-4">
+                {activities.slice(0, 5).map((activity, index) => (
+                  <motion.div
+                    key={`${activity.type}-${index}`}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 * index }}
+                    className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-100"
+                  >
+                    <div className={`w-12 h-12 bg-gradient-to-r ${
+                      activity.type === 'achievement' 
+                        ? 'from-yellow-400 to-orange-500' 
+                        : 'from-blue-400 to-purple-500'
+                    } rounded-full flex items-center justify-center mr-4`}>
+                      {activity.type === 'achievement' ? (
+                        <Trophy className="w-6 h-6 text-white" />
+                      ) : (
+                        <Calendar className="w-6 h-6 text-white" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-800">
+                        {activity.title}
+                      </h4>
+                      <p className="text-gray-600 text-sm">
+                        {activity.action_type} • {formatTimeAgo(activity.created_at)}
+                      </p>
+                    </div>
+                    {activity.points > 0 && (
+                      <div className="text-green-600 font-semibold">
+                        +{activity.points}
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Пока нет активности</h3>
+                <p className="text-gray-600">
+                  Участвуйте в мероприятиях и зарабатывайте достижения, чтобы увидеть свою активность здесь!
+                </p>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>

@@ -326,4 +326,50 @@ router.put('/profile', [
   }
 });
 
+// Получение последней активности пользователя
+router.get('/recent-activity', auth, async (req, res) => {
+  try {
+    const activities = [];
+
+    // Получаем последние достижения (за последние 30 дней)
+    const achievementsResult = await db.query(`
+      SELECT 'achievement' as type, a.title as title, a.points, ua.awarded_at as created_at,
+             'Получено достижение' as action_type, a.icon
+      FROM achievements a
+      JOIN user_achievements ua ON a.id = ua.achievement_id
+      WHERE ua.user_id = ? AND datetime(ua.awarded_at) >= datetime('now', '-30 days')
+      ORDER BY ua.awarded_at DESC
+      LIMIT 5
+    `, [req.user.id]);
+
+    // Получаем последние участия в мероприятиях (за последние 30 дней)
+    const eventsResult = await db.query(`
+      SELECT 'event' as type, e.title, e.points, er.registered_at as created_at,
+             CASE 
+               WHEN er.status = 'attended' THEN 'Участие в мероприятии'
+               ELSE 'Регистрация на мероприятие'
+             END as action_type,
+             NULL as icon
+      FROM events e
+      JOIN event_registrations er ON e.id = er.event_id
+      WHERE er.user_id = ? AND datetime(er.registered_at) >= datetime('now', '-30 days')
+      ORDER BY er.registered_at DESC
+      LIMIT 5
+    `, [req.user.id]);
+
+    // Объединяем и сортируем по дате
+    const allActivities = [
+      ...achievementsResult.rows,
+      ...eventsResult.rows
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    res.json({ 
+      activities: allActivities.slice(0, 10) // Возвращаем последние 10 активностей
+    });
+  } catch (error) {
+    console.error('Ошибка получения последней активности:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 module.exports = router;
