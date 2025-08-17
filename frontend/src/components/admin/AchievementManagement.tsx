@@ -25,6 +25,7 @@ interface Achievement {
   type: 'participation' | 'excellence' | 'leadership' | 'community';
   points: number;
   badge_color: string;
+  requirements?: string;
   created_at: string;
   awarded_count?: number;
   category?: string; // Вычисляется из type
@@ -61,7 +62,8 @@ const AchievementManagement: React.FC = () => {
     description: '',
     category: '',
     points: 10,
-    iconUrl: ''
+    iconUrl: '',
+    requirements: ''
   });
 
   const categories = ['Академические', 'Спортивные', 'Творческие', 'Социальные', 'Лидерство'];
@@ -197,6 +199,7 @@ const AchievementManagement: React.FC = () => {
           icon: newAchievement.iconUrl || '🏆',
           type: getTypeFromCategory(newAchievement.category),
           points: newAchievement.points,
+          requirements: newAchievement.requirements || null,
           badge_color: '#FFD700'
         })
       });
@@ -213,7 +216,8 @@ const AchievementManagement: React.FC = () => {
         description: '',
         category: '',
         points: 10,
-        iconUrl: ''
+        iconUrl: '',
+        requirements: ''
       });
       toast.success('Достижение создано успешно');
     } catch (error: any) {
@@ -238,6 +242,7 @@ const AchievementManagement: React.FC = () => {
           icon: selectedAchievement.icon || '🏆',
           type: getTypeFromCategory(selectedAchievement.category || 'Спортивные'),
           points: selectedAchievement.points,
+          requirements: selectedAchievement.requirements || null,
           badge_color: selectedAchievement.badge_color || '#FFD700'
         })
       });
@@ -471,6 +476,15 @@ const AchievementManagement: React.FC = () => {
               
               <p className="text-gray-600 text-sm mb-4 line-clamp-3">{achievement.description}</p>
               
+              {achievement.requirements && (
+                <div className="mb-4">
+                  <p className="text-xs text-gray-500 mb-1">Условия получения:</p>
+                  <p className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs line-clamp-2">
+                    {achievement.requirements}
+                  </p>
+                </div>
+              )}
+              
               <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                 <div className="flex items-center space-x-2">
                   <Star className="w-4 h-4" />
@@ -590,6 +604,23 @@ const AchievementManagement: React.FC = () => {
                   </button>
                 </div>
               </div>
+              
+              {/* Requirements field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Условия получения достижения
+                </label>
+                <textarea
+                  placeholder="Опишите условия для получения этого достижения (например: 'Участие в 3 мероприятиях', 'Заработать 100 баллов')"
+                  value={newAchievement.requirements}
+                  onChange={(e) => setNewAchievement({ ...newAchievement, requirements: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Оставьте пустым, если достижение выдается вручную администратором
+                </p>
+              </div>
             </div>
             <div className="flex space-x-4 mt-6">
               <button
@@ -680,6 +711,23 @@ const AchievementManagement: React.FC = () => {
                     <span>Изменить иконку</span>
                   </button>
                 </div>
+              </div>
+              
+              {/* Requirements field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Условия получения достижения
+                </label>
+                <textarea
+                  placeholder="Опишите условия для получения этого достижения (например: 'Участие в 3 мероприятиях', 'Заработать 100 баллов')"
+                  value={selectedAchievement.requirements || ''}
+                  onChange={(e) => setSelectedAchievement({ ...selectedAchievement, requirements: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Оставьте пустым, если достижение выдается вручную администратором
+                </p>
               </div>
             </div>
             <div className="flex space-x-4 mt-6">

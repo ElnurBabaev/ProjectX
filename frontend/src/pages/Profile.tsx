@@ -422,7 +422,24 @@ const Profile: React.FC = () => {
                   className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-4 border border-yellow-200"
                 >
                   <div className="text-center">
-                    <div className="text-2xl mb-2">{achievement.icon}</div>
+                    <div className="mb-2 flex justify-center">
+                      {achievement.icon && achievement.icon.startsWith('/images') ? (
+                        <img 
+                          src={achievement.icon}
+                          alt={achievement.title}
+                          className="w-12 h-12 object-contain"
+                          onError={(e) => {
+                            // Fallback к трофею если изображение не загружается
+                            console.error('Failed to load achievement icon:', achievement.icon);
+                            e.currentTarget.src = '/images/achievements/trophy-gold.svg';
+                          }}
+                        />
+                      ) : (
+                        <div className="text-2xl">
+                          {achievement.icon || '🏆'}
+                        </div>
+                      )}
+                    </div>
                     <h4 className="font-semibold text-yellow-800 mb-1">
                       {achievement.title}
                     </h4>

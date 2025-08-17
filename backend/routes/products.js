@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { auth, adminAuth } = require('../middleware/auth');
+const AchievementChecker = require('../utils/achievementChecker');
 
 const router = express.Router();
 
@@ -118,6 +119,9 @@ router.post('/order', [
       );
     }
 
+    // Проверяем достижения после покупки
+    const earnedAchievements = await AchievementChecker.checkAfterPurchase(userId);
+
     res.status(201).json({
       message: 'Заказ успешно создан',
       order: {
@@ -125,7 +129,9 @@ router.post('/order', [
         total_amount: totalAmount,
         status: 'pending',
         items: orderItems
-      }
+      },
+      achievementsEarned: earnedAchievements.length,
+      newAchievements: earnedAchievements.map(a => ({ id: a.id, title: a.title }))
     });
   } catch (error) {
     console.error('Ошибка создания заказа:', error);

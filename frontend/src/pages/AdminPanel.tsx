@@ -39,18 +39,30 @@ const AdminPanel: React.FC = () => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/stats', {
+      const response = await fetch('http://localhost:5000/api/admin/statistics', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
       if (response.ok) {
         const data = await response.json();
-        setStats(data);
+        console.log('AdminPanel: Received stats data:', data);
+        // Преобразуем данные из формата API в нужный формат
+        setStats({
+          users: data.users?.total || 0,
+          events: data.events?.total || 0,
+          products: data.products?.total || 0,
+          achievements: data.achievements?.total_achievements || 0
+        });
+      } else {
+        console.error('AdminPanel: Failed to fetch stats, status:', response.status);
+        toast.error('Ошибка загрузки статистики');
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('AdminPanel: Error fetching stats:', error);
+      toast.error('Ошибка загрузки статистики');
     } finally {
       setLoading(false);
     }

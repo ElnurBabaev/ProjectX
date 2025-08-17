@@ -6,7 +6,8 @@ import {
   Trash2, 
   Plus, 
   Key,
-  X
+  X,
+  Trophy
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminApi } from '../../utils/api';
@@ -136,6 +137,35 @@ const UserManagement: React.FC = () => {
       toast.success(`${points > 0 ? 'Баллы начислены' : 'Баллы списаны'}`);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Ошибка при обновлении баллов');
+    }
+  };
+
+  const checkUserAchievements = async (userId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/check-achievements`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Ошибка проверки достижений');
+      }
+
+      const data = await response.json();
+      
+      if (data.achievementsEarned > 0) {
+        toast.success(`${data.message}\nНовые достижения: ${data.newAchievements.map((a: any) => a.title).join(', ')}`);
+      } else {
+        toast.success('Проверка завершена. Новых достижений не найдено.');
+      }
+      
+      await fetchUsers(); // Обновляем список пользователей
+    } catch (error: any) {
+      toast.error('Ошибка проверки достижений');
     }
   };
 
@@ -303,8 +333,16 @@ const UserManagement: React.FC = () => {
                           setShowEditModal(true);
                         }}
                         className="text-blue-600 hover:text-blue-900"
+                        title="Редактировать"
                       >
                         <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => checkUserAchievements(user.id)}
+                        className="text-green-600 hover:text-green-900"
+                        title="Проверить достижения"
+                      >
+                        <Trophy className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => {
@@ -312,12 +350,14 @@ const UserManagement: React.FC = () => {
                           setShowPasswordModal(true);
                         }}
                         className="text-yellow-600 hover:text-yellow-900"
+                        title="Сбросить пароль"
                       >
                         <Key className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => deleteUser(user.id)}
                         className="text-red-600 hover:text-red-900"
+                        title="Удалить"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

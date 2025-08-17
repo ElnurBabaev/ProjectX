@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const { adminAuth } = require('../middleware/auth');
+const AchievementChecker = require('../utils/achievementChecker');
 
 const router = express.Router();
 
@@ -368,9 +369,14 @@ router.post('/events/:eventId/confirm-attendance', [
       `, [event.points, event.points, userId]);
     }
 
+    // Проверяем достижения после участия в мероприятии
+    const earnedAchievements = await AchievementChecker.checkAfterEventParticipation(userId);
+
     res.json({ 
       message: 'Участие подтверждено',
-      pointsAwarded: event.points || 0
+      pointsAwarded: event.points || 0,
+      achievementsEarned: earnedAchievements.length,
+      newAchievements: earnedAchievements.map(a => ({ id: a.id, title: a.title }))
     });
   } catch (error) {
     console.error('Ошибка подтверждения участия:', error);
@@ -698,14 +704,97 @@ router.post('/users/:userId/update-points', [
 
     console.log(`✅ Баллы обновлены: ${currentPoints} → ${newPoints}`);
 
+    // Автоматически проверяем достижения после обновления баллов (только при начислении)
+    let earnedAchievements = [];
+    if (points > 0) {
+      try {
+        console.log(`🏆 Проверяем достижения после начисления баллов пользователю ${userId}`);
+        earnedAchievements = await AchievementChecker.checkAllAchievements(userId);
+        if (earnedAchievements.length > 0) {
+          console.log(`✨ Найдено и выдано ${earnedAchievements.length} новых достижений`);
+        }
+      } catch (error) {
+        console.error('Ошибка проверки достижений после начисления баллов:', error);
+      }
+    }
+
     res.json({
       message: 'Баллы успешно обновлены',
       oldPoints: currentPoints,
       addedPoints: points,
-      newPoints: newPoints
+      newPoints: newPoints,
+      earnedAchievements: earnedAchievements.map(a => ({
+        id: a.id,
+        title: a.title,
+        points: a.points
+      }))
     });
   } catch (error) {
     console.error('Ошибка при обновлении баллов:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Проверить все достижения для пользователя
+router.post('/users/:userId/check-achievements', adminAuth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Проверяем существование пользователя
+    const userCheck = await db.query('SELECT id FROM users WHERE id = ?', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    // Проверяем все достижения
+    const earnedAchievements = await AchievementChecker.checkAllAchievements(userId);
+
+    res.json({
+      message: `Проверка завершена. Получено достижений: ${earnedAchievements.length}`,
+      achievementsEarned: earnedAchievements.length,
+      newAchievements: earnedAchievements.map(a => ({
+        id: a.id,
+        title: a.title,
+        points: a.points,
+        requirements: a.requirements
+      }))
+    });
+  } catch (error) {
+    console.error('Ошибка проверки достижений:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Проверить достижения для всех пользователей
+router.post('/check-all-achievements', adminAuth, async (req, res) => {
+  try {
+    const usersResult = await db.query('SELECT id FROM users WHERE role = ?', ['student']);
+    const users = usersResult.rows;
+    
+    let totalEarnedAchievements = 0;
+    const results = [];
+
+    for (const user of users) {
+      const earnedAchievements = await AchievementChecker.checkAllAchievements(user.id);
+      totalEarnedAchievements += earnedAchievements.length;
+      
+      if (earnedAchievements.length > 0) {
+        results.push({
+          userId: user.id,
+          achievementsEarned: earnedAchievements.length,
+          newAchievements: earnedAchievements.map(a => ({ id: a.id, title: a.title }))
+        });
+      }
+    }
+
+    res.json({
+      message: `Проверка завершена для ${users.length} пользователей. Всего получено достижений: ${totalEarnedAchievements}`,
+      totalUsers: users.length,
+      totalAchievementsEarned: totalEarnedAchievements,
+      results
+    });
+  } catch (error) {
+    console.error('Ошибка глобальной проверки достижений:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });

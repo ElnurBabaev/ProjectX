@@ -1,10 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Users, Trophy, ShoppingBag, Star, TrendingUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { productsApi } from '../utils/api';
+import { Order } from '../utils/types';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const loadOrders = async () => {
+    try {
+      const ordersResponse = await productsApi.getMyOrders();
+      setOrders(ordersResponse.data || []);
+    } catch (error) {
+      console.error('Ошибка загрузки заказов:', error);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const stats = [
     {
@@ -33,7 +53,7 @@ const Dashboard: React.FC = () => {
     },
     {
       title: 'Покупок',
-      value: 0, // TODO: добавить статистику покупок
+      value: orders.length,
       icon: ShoppingBag,
       color: 'from-purple-400 to-purple-600',
       bgColor: 'bg-purple-50',
@@ -120,7 +140,11 @@ const Dashboard: React.FC = () => {
                 <TrendingUp className={`w-5 h-5 ${stat.textColor}`} />
               </div>
               <div className={`text-3xl font-bold ${stat.textColor} mb-2`}>
-                {Math.floor(stat.value).toLocaleString()}
+                {loading && stat.title === 'Покупок' ? (
+                  <div className="w-8 h-8 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+                ) : (
+                  Math.floor(stat.value).toLocaleString()
+                )}
               </div>
               <div className={`text-sm ${stat.textColor} opacity-80`}>
                 {stat.title}

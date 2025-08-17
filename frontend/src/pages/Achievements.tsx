@@ -193,6 +193,16 @@ const Achievements: React.FC = () => {
                   {achievement.description}
                 </p>
 
+                {/* Requirements */}
+                {achievement.requirements && !earned && (
+                  <div className="mb-4">
+                    <p className="text-xs text-gray-500 text-center mb-2">Условия получения:</p>
+                    <p className="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg text-center text-xs">
+                      {achievement.requirements}
+                    </p>
+                  </div>
+                )}
+
                 {/* Points */}
                 <div className={`flex items-center justify-center p-3 rounded-xl mb-4 ${
                   earned 

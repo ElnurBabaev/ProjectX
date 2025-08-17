@@ -41,6 +41,7 @@ export interface Achievement {
   type: 'participation' | 'excellence' | 'leadership' | 'community';
   points: number;
   badge_color: string;
+  requirements?: string;
   created_at: string;
   awarded_at?: string;
   notes?: string;
