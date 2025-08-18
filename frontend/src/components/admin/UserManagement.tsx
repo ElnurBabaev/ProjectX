@@ -10,7 +10,7 @@ import {
   Trophy
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { adminApi } from '../../utils/api';
+import api, { adminApi } from '../../utils/api';
 
 interface User {
   id: number;
@@ -142,20 +142,7 @@ const UserManagement: React.FC = () => {
 
   const checkUserAchievements = async (userId: number) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/check-achievements`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Ошибка проверки достижений');
-      }
-
-      const data = await response.json();
+      const { data } = await api.post(`/admin/users/${userId}/check-achievements`);
       
       if (data.achievementsEarned > 0) {
         toast.success(`${data.message}\nНовые достижения: ${data.newAchievements.map((a: any) => a.title).join(', ')}`);

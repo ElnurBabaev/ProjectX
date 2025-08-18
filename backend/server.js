@@ -14,7 +14,8 @@ const uploadRoutes = require('./routes/upload');
 const rankingRoutes = require('./routes/rankings');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT, 10) || 5000;
+const HOST = process.env.HOST || '127.0.0.1';
 
 // Middleware безопасности
 app.use(helmet());
@@ -27,13 +28,29 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // CORS
+// Разрешённые источники можно задать через переменную окружения CORS_ORIGINS
+// пример: CORS_ORIGINS="https://schoolactive.ru,https://www.schoolactive.ru,http://localhost:5173"
+const defaultOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:5173',
+  'https://schoolactive.ru',
+  'http://schoolactive.ru'
+];
+const envOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
+
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'http://localhost:5173'
-  ],
+  origin(origin, callback) {
+    // Разрешаем запросы без Origin (например, curl/health-check)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 
@@ -43,12 +60,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Статические файлы с CORS заголовками
 const path = require('path');
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
 app.use('/uploads', (req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
-}, express.static(path.join(__dirname, 'uploads')));
+}, express.static(UPLOADS_DIR));
 
 // Маршруты API
 app.use('/api/auth', authRoutes);
@@ -101,11 +119,20 @@ app.use((error, req, res, next) => {
 });
 
 // Запуск сервера
-const server = app.listen(PORT, '127.0.0.1', () => {
+// Если приложение работает за обратным прокси (Nginx), включаем trust proxy
+if (process.env.TRUST_PROXY === '1') {
+  app.set('trust proxy', 1);
+}
+
+const server = app.listen(PORT, HOST, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
-  console.log(`📋 API доступен по адресу: http://localhost:${PORT}/api`);
+  console.log(`📋 API доступен по адресу: http://${HOST}:${PORT}/api`);
   console.log(`🗄️ База данных: SQLite`);
   console.log(`🏠 Среда: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🗂️ UPLOADS_DIR: ${UPLOADS_DIR}`);
+  if (allowedOrigins.length) {
+    console.log('🌐 CORS origins:', allowedOrigins.join(', '));
+  }
 });
 
 server.on('error', (err) => {

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Users, Trophy, ShoppingBag, Star, TrendingUp, BarChart3, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { productsApi } from '../utils/api';
+import api, { productsApi } from '../utils/api';
 import { Order } from '../utils/types';
 import { useRankingStats, useTopStudents } from '../hooks/useRankings';
 
@@ -34,20 +34,12 @@ const Dashboard: React.FC = () => {
     try {
       const [ordersResponse, activitiesResponse] = await Promise.all([
         productsApi.getMyOrders(),
-        fetch('http://localhost:5000/api/auth/recent-activity', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        api.get('/auth/recent-activity')
       ]);
       
       setOrders(ordersResponse.data || []);
       
-      if (activitiesResponse.ok) {
-        const activitiesData = await activitiesResponse.json();
-        setActivities(activitiesData.activities || []);
-      }
+  setActivities((activitiesResponse.data?.activities) || []);
     } catch (error) {
       console.error('Ошибка загрузки данных:', error);
       setOrders([]);
@@ -262,7 +254,7 @@ const Dashboard: React.FC = () => {
                     <div>
                       <p className="text-white/80 text-sm">Общие очки</p>
                       <p className="text-2xl font-bold">{rankingStats.userStats.points}</p>
-                      <p className="text-white/60 text-xs">{rankingStats.userStats.achievements} достижений</p>
+                      <p className="text-white/60 text-xs">{rankingStats.userStats.eventsParticipated} мероприятий</p>
                     </div>
                   </div>
                 </div>
@@ -316,8 +308,8 @@ const Dashboard: React.FC = () => {
                         <p className="text-gray-500 text-xs">очков</p>
                       </div>
                       <div className="text-center">
-                        <p className="font-bold text-lg text-blue-600">{student.achievements_count}</p>
-                        <p className="text-gray-500 text-xs">достижений</p>
+                        <p className="font-bold text-lg text-blue-600">{student.events_participated}</p>
+                        <p className="text-gray-500 text-xs">мероприятий</p>
                       </div>
                     </div>
                   </div>

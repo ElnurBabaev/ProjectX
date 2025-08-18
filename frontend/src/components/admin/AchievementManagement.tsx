@@ -14,8 +14,8 @@ import {
   Image
 } from 'lucide-react';
 import AchievementIconSelector from '../AchievementIconSelector';
-import { getAchievementIconPath } from '../../config/simple-images';
 import toast from 'react-hot-toast';
+import api from '../../utils/api';
 
 interface Achievement {
   id: number;
@@ -100,31 +100,16 @@ const AchievementManagement: React.FC = () => {
   const fetchAchievements = async () => {
     console.log('AchievementManagement: fetchAchievements called');
     try {
-      const token = localStorage.getItem('token');
-      console.log('AchievementManagement: token exists:', !!token);
-      
-      if (!token) {
+  const token = localStorage.getItem('token');
+  console.log('AchievementManagement: token exists:', !!token);
+
+  if (!token) {
         console.log('AchievementManagement: No token, stopping fetch');
         toast.error('Необходима авторизация');
         setLoading(false);
         return;
       }
-      
-      const response = await fetch('http://localhost:5000/api/achievements', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('AchievementManagement: response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Ошибка загрузки достижений' }));
-        throw new Error(errorData.message || 'Ошибка загрузки достижений');
-      }
-      
-      const data = await response.json();
+  const { data } = await api.get('/achievements');
       console.log('AchievementManagement: received data:', data);
       
       // Преобразуем данные для отображения
@@ -147,17 +132,7 @@ const AchievementManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/admin/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) throw new Error('Ошибка загрузки пользователей');
-      
-      const data = await response.json();
+      const { data } = await api.get('/admin/users');
       // Преобразуем поля из snake_case в camelCase для совместимости
       const transformedUsers = (data.users || []).map((user: any) => ({
         id: user.id,
@@ -186,28 +161,15 @@ const AchievementManagement: React.FC = () => {
 
   const createAchievement = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/achievements', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title: newAchievement.title,
-          description: newAchievement.description,
-          icon: newAchievement.iconUrl || '🏆',
-          type: getTypeFromCategory(newAchievement.category),
-          points: newAchievement.points,
-          requirements: newAchievement.requirements || null,
-          badge_color: '#FFD700'
-        })
+      await api.post('/achievements', {
+        title: newAchievement.title,
+        description: newAchievement.description,
+        icon: newAchievement.iconUrl || '🏆',
+        type: getTypeFromCategory(newAchievement.category),
+        points: newAchievement.points,
+        requirements: newAchievement.requirements || null,
+        badge_color: '#FFD700'
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка создания достижения');
-      }
 
       await fetchAchievements();
       setShowCreateModal(false);
@@ -229,28 +191,15 @@ const AchievementManagement: React.FC = () => {
     if (!selectedAchievement) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/achievements/${selectedAchievement.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title: selectedAchievement.title,
-          description: selectedAchievement.description,
-          icon: selectedAchievement.icon || '🏆',
-          type: getTypeFromCategory(selectedAchievement.category || 'Спортивные'),
-          points: selectedAchievement.points,
-          requirements: selectedAchievement.requirements || null,
-          badge_color: selectedAchievement.badge_color || '#FFD700'
-        })
+      await api.put(`/achievements/${selectedAchievement.id}`, {
+        title: selectedAchievement.title,
+        description: selectedAchievement.description,
+        icon: selectedAchievement.icon || '🏆',
+        type: getTypeFromCategory(selectedAchievement.category || 'Спортивные'),
+        points: selectedAchievement.points,
+        requirements: selectedAchievement.requirements || null,
+        badge_color: selectedAchievement.badge_color || '#FFD700'
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка обновления достижения');
-      }
 
       await fetchAchievements();
       setShowEditModal(false);
@@ -265,19 +214,7 @@ const AchievementManagement: React.FC = () => {
     if (!confirm('Вы уверены, что хотите удалить это достижение?')) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/achievements/${achievementId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка удаления достижения');
-      }
+      await api.delete(`/achievements/${achievementId}`);
 
       await fetchAchievements();
       toast.success('Достижение удалено успешно');
@@ -288,17 +225,7 @@ const AchievementManagement: React.FC = () => {
 
   const fetchAchievementUsers = async (achievementId: number) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/achievements/${achievementId}/users`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) throw new Error('Ошибка загрузки пользователей достижения');
-      
-      const data = await response.json();
+      const { data } = await api.get(`/admin/achievements/${achievementId}/users`);
       // Данные уже в правильном формате camelCase из API
       setAchievementUsers(data.users || []);
     } catch (error: any) {
@@ -310,20 +237,7 @@ const AchievementManagement: React.FC = () => {
     if (!selectedAchievement) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/achievements/${selectedAchievement.id}/assign`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка назначения достижения');
-      }
+      await api.post(`/admin/achievements/${selectedAchievement.id}/assign`, { userId });
 
       await fetchAchievementUsers(selectedAchievement.id);
       toast.success('Достижение назначено пользователю');
@@ -336,20 +250,7 @@ const AchievementManagement: React.FC = () => {
     if (!selectedAchievement) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/achievements/${selectedAchievement.id}/revoke`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка отзыва достижения');
-      }
+      await api.post(`/admin/achievements/${selectedAchievement.id}/revoke`, { userId });
 
       await fetchAchievementUsers(selectedAchievement.id);
       toast.success('Достижение отозвано у пользователя');

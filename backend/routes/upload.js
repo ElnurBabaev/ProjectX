@@ -9,10 +9,10 @@ const router = express.Router();
 // Настройка multer для загрузки файлов
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const dest = path.join(__dirname, '..', 'uploads');
+    const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
     // гарантируем, что папка существует
-    fs.mkdirSync(dest, { recursive: true });
-    cb(null, dest);
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    cb(null, uploadsDir);
   },
   filename: function (req, file, cb) {
     // Генерируем уникальное имя файла
@@ -73,8 +73,9 @@ router.delete('/delete-image', adminAuth, (req, res) => {
     }
 
     // Извлекаем имя файла из URL
-    const filename = path.basename(imageUrl);
-    const filePath = path.join(__dirname, '..', 'uploads', filename);
+  const filename = path.basename(imageUrl);
+  const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
+  const filePath = path.join(uploadsDir, filename);
 
     // Проверяем, существует ли файл
     const fs = require('fs');

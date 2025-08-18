@@ -11,7 +11,7 @@ import {
   Camera
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { eventsApi, achievementsApi, authApi } from '../utils/api';
+import api, { eventsApi, achievementsApi, authApi } from '../utils/api';
 import { Event, Achievement } from '../utils/types';
 import { useForm } from 'react-hook-form';
 import AvatarSelector from '../components/AvatarSelector';
@@ -84,18 +84,7 @@ const Profile: React.FC = () => {
   const handleAvatarSelect = async (avatarId: string) => {
     setAvatarLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/auth/profile', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ avatar_id: avatarId })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Ошибка обновления аватара');
-      }
+      await api.put('/auth/profile', { avatar_id: avatarId });
       
       // Обновляем локальное состояние пользователя
       if (user) {

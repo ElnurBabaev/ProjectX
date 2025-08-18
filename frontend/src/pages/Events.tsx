@@ -6,7 +6,7 @@ import { Event } from '../utils/types';
 import toast from 'react-hot-toast';
 
 const Events: React.FC = () => {
-  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
   const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Users, Calendar, ShoppingBag, Award, BarChart3, FileDown } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -38,16 +39,7 @@ const AdminPanel: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/admin/statistics', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+  const { data } = await api.get('/admin/statistics');
         console.log('AdminPanel: Received stats data:', data);
         // Преобразуем данные из формата API в нужный формат
         setStats({
@@ -56,10 +48,7 @@ const AdminPanel: React.FC = () => {
           products: data.products?.total || 0,
           achievements: data.achievements?.total_achievements || 0
         });
-      } else {
-        console.error('AdminPanel: Failed to fetch stats, status:', response.status);
-        toast.error('Ошибка загрузки статистики');
-      }
+      
     } catch (error) {
       console.error('AdminPanel: Error fetching stats:', error);
       toast.error('Ошибка загрузки статистики');

@@ -16,7 +16,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   accept = "image/*"
 }) => {
   // Базовые адреса API/статических файлов из окружения
-  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
   const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
   // Функция для получения полного URL изображения
