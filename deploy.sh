@@ -2,7 +2,7 @@
 set -e
 
 # ========== ПЕРЕМЕННЫЕ ==========
-DOMAIN="YOUR_DOMAIN.RU"
+DOMAIN="schoolactive.ru"
 APP_DIR="/var/www/ProjectX"
 DB_DIR="/var/www/db"
 DB_FILE="$DB_DIR/database.sqlite"
