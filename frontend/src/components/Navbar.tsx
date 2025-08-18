@@ -9,7 +9,8 @@ import {
   LogOut, 
   Menu, 
   X, 
-  Shield 
+  Shield,
+  BarChart3
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +25,7 @@ const Navbar: React.FC = () => {
     { name: 'Главная', href: '/', icon: Home },
     { name: 'Мероприятия', href: '/events', icon: Calendar },
     { name: 'Достижения', href: '/achievements', icon: Trophy },
+    { name: 'Рейтинг', href: '/rankings', icon: BarChart3 },
     { name: 'Магазин', href: '/shop', icon: ShoppingBag },
   ];
 

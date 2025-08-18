@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { auth, adminAuth } = require('../middleware/auth');
+const { updateUserPointsForAchievement, recalculateUserPoints } = require('../utils/pointsCalculator');
 
 const router = express.Router();
 
@@ -141,6 +142,18 @@ router.put('/:id', [
       return res.status(404).json({ message: 'Достижение не найдено' });
     }
 
+    // Если изменились баллы, пересчитываем баллы всех пользователей с этим достижением
+    if (points !== undefined) {
+      const usersWithAchievement = await db.query(
+        'SELECT DISTINCT user_id FROM user_achievements WHERE achievement_id = ?',
+        [req.params.id]
+      );
+      
+      for (const userRecord of usersWithAchievement.rows) {
+        await updateUserPointsForAchievement(userRecord.user_id);
+      }
+    }
+
     res.json({ message: 'Достижение обновлено' });
   } catch (error) {
     console.error('Ошибка обновления достижения:', error);
@@ -197,9 +210,43 @@ router.post('/:achievementId/award/:userId', adminAuth, async (req, res) => {
       [userId, achievementId, notes || null]
     );
 
+    // Пересчитываем баллы пользователя
+    await recalculateUserPoints(userId);
+
     res.json({ message: 'Достижение успешно присвоено пользователю' });
   } catch (error) {
     console.error('Ошибка присвоения достижения:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Отзыв достижения у пользователя
+router.delete('/:achievementId/revoke/:userId', adminAuth, async (req, res) => {
+  try {
+    const { achievementId, userId } = req.params;
+
+    // Проверяем, что достижение у пользователя существует
+    const existingResult = await db.query(
+      'SELECT id FROM user_achievements WHERE user_id = ? AND achievement_id = ?',
+      [userId, achievementId]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return res.status(404).json({ message: 'У пользователя нет этого достижения' });
+    }
+
+    // Отзываем достижение
+    await db.query(
+      'DELETE FROM user_achievements WHERE user_id = ? AND achievement_id = ?',
+      [userId, achievementId]
+    );
+
+    // Пересчитываем баллы пользователя
+    await recalculateUserPoints(userId);
+
+    res.json({ message: 'Достижение успешно отозвано у пользователя' });
+  } catch (error) {
+    console.error('Ошибка отзыва достижения:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });

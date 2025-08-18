@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { auth, adminAuth } = require('../middleware/auth');
+const { recalculateUserPoints, updateUserPointsForEvent } = require('../utils/pointsCalculator');
 
 const router = express.Router();
 
@@ -83,6 +84,8 @@ router.post('/:id/register', auth, async (req, res) => {
       [eventId]
     );
 
+  // Баллы не начисляются при регистрации, только после подтверждения
+
     res.json({ message: 'Успешно зарегистрированы на мероприятие' });
   } catch (error) {
     console.error('Ошибка регистрации на мероприятие:', error);
@@ -110,6 +113,8 @@ router.delete('/:id/register', auth, async (req, res) => {
       'UPDATE events SET current_participants = current_participants - 1 WHERE id = ?',
       [eventId]
     );
+
+  // Пересчет не требуется, баллы начисляются только после подтверждения
 
     res.json({ message: 'Регистрация отменена' });
   } catch (error) {
@@ -144,7 +149,8 @@ router.post('/', [
   body('title').notEmpty().withMessage('Название мероприятия обязательно'),
   body('description').notEmpty().withMessage('Описание мероприятия обязательно'),
   body('start_date').isISO8601().withMessage('Неверный формат даты начала'),
-  body('location').notEmpty().withMessage('Место проведения обязательно')
+  body('location').notEmpty().withMessage('Место проведения обязательно'),
+  body('points').optional().isInt({ min: 0 }).withMessage('Количество баллов должно быть неотрицательным числом')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -152,14 +158,14 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, start_date, end_date, location, max_participants, image_url } = req.body;
+    const { title, description, start_date, end_date, location, max_participants, image_url, points } = req.body;
     
     const result = await db.query(`
-      INSERT INTO events (title, description, start_date, end_date, location, max_participants, image_url, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [title, description, start_date, end_date, location, max_participants || null, image_url || null, req.user.id]);
+      INSERT INTO events (title, description, start_date, end_date, location, max_participants, image_url, points, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [title, description, start_date, end_date, location, max_participants || null, image_url || null, points || 10, req.user.id]);
 
-    res.status(201).json({ 
+  res.status(201).json({ 
       message: 'Мероприятие создано', 
       event: { 
         id: result.insertId, 
@@ -169,7 +175,7 @@ router.post('/', [
         end_date, 
         location, 
         max_participants, 
-        image_url 
+    image_url 
       } 
     });
   } catch (error) {
@@ -184,7 +190,8 @@ router.put('/:id', [
   body('title').notEmpty().withMessage('Название мероприятия обязательно'),
   body('description').notEmpty().withMessage('Описание мероприятия обязательно'),
   body('start_date').isISO8601().withMessage('Неверный формат даты начала'),
-  body('location').notEmpty().withMessage('Место проведения обязательно')
+  body('location').notEmpty().withMessage('Место проведения обязательно'),
+  body('points').optional().isInt({ min: 0 }).withMessage('Количество баллов должно быть неотрицательным числом')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -192,16 +199,22 @@ router.put('/:id', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, start_date, end_date, location, max_participants, image_url, status } = req.body;
+    const { title, description, start_date, end_date, location, max_participants, image_url, status, points } = req.body;
     
     const result = await db.query(`
       UPDATE events 
-      SET title = ?, description = ?, start_date = ?, end_date = ?, location = ?, max_participants = ?, image_url = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, description = ?, start_date = ?, end_date = ?, location = ?, max_participants = ?, image_url = ?, status = ?, points = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `, [title, description, start_date, end_date, location, max_participants || null, image_url || null, status || 'upcoming', req.params.id]);
+    `, [title, description, start_date, end_date, location, max_participants || null, image_url || null, status || 'upcoming', points || 10, req.params.id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Мероприятие не найдено' });
+    }
+
+    // Если изменились баллы за мероприятие, пересчитываем баллы участников
+    if (points !== undefined) {
+      // При изменении количества баллов за мероприятие пересчитываем только тех, кто был отмечен как присутствовал
+      await updateUserPointsForEvent(req.params.id);
     }
 
     res.json({ message: 'Мероприятие обновлено' });

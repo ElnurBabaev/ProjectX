@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { recalculateUserPoints } = require('./pointsCalculator');
 
 class AchievementChecker {
   // Проверить все условия достижений для пользователя
@@ -139,21 +140,8 @@ class AchievementChecker {
         [userId, achievementId, notes]
       );
 
-      // Получаем информацию о достижении для начисления баллов
-      const achievementResult = await db.query(
-        'SELECT points FROM achievements WHERE id = ?',
-        [achievementId]
-      );
-
-      const points = achievementResult.rows[0]?.points || 0;
-
-      if (points > 0) {
-        // Начисляем баллы пользователю
-        await db.query(
-          'UPDATE users SET points = points + ?, total_earned_points = total_earned_points + ? WHERE id = ?',
-          [points, points, userId]
-        );
-      }
+      // Пересчитываем общие баллы пользователя
+      await recalculateUserPoints(userId);
 
       return true;
     } catch (error) {

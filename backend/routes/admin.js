@@ -4,6 +4,7 @@ const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const { adminAuth } = require('../middleware/auth');
 const AchievementChecker = require('../utils/achievementChecker');
+const { recalculateUserPoints } = require('../utils/pointsCalculator');
 const xlsx = require('xlsx');
 
 const router = express.Router();
@@ -66,7 +67,7 @@ router.get('/statistics', adminAuth, async (req, res) => {
 router.get('/users', adminAuth, async (req, res) => {
   try {
     const { role, search } = req.query;
-    let query = 'SELECT id, login, first_name, last_name, class_grade, class_letter, role, points, created_at FROM users';
+    let query = 'SELECT id, login, first_name, last_name, class_grade, class_letter, role, total_points as personalPoints, admin_points, created_at FROM users';
     const params = [];
 
     if (role) {
@@ -149,7 +150,9 @@ router.put('/users/:id', [
   body('login').optional().isLength({ min: 3, max: 50 }),
   body('first_name').optional().notEmpty(),
   body('last_name').optional().notEmpty(),
-  body('role').optional().isIn(['student', 'admin'])
+  body('role').optional().isIn(['student', 'admin']),
+  body('admin_points').optional().isInt({ min: 0 }).withMessage('Баллы администратора должны быть неотрицательным числом'),
+  body('total_points').optional().isInt({ min: 0 }).withMessage('Общие баллы должны быть неотрицательным числом (устаревшее поле)')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -158,7 +161,10 @@ router.put('/users/:id', [
     }
 
     const userId = req.params.id;
-    const { login, first_name, last_name, class_grade, class_letter, role } = req.body;
+    const { login, first_name, last_name, class_grade, class_letter, role, admin_points, total_points } = req.body;
+
+    // Совместимость: если передано total_points вместо admin_points
+    const pointsToSet = admin_points !== undefined ? admin_points : total_points;
 
     // Проверяем существование пользователя
     const userResult = await db.query('SELECT id FROM users WHERE id = ?', [userId]);
@@ -205,6 +211,10 @@ router.put('/users/:id', [
       updates.push('role = ?');
       params.push(role);
     }
+    if (pointsToSet !== undefined) {
+      updates.push('admin_points = ?');
+      params.push(pointsToSet);
+    }
 
     updates.push('updated_at = CURRENT_TIMESTAMP');
     params.push(userId);
@@ -214,6 +224,12 @@ router.put('/users/:id', [
         `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
         params
       );
+    }
+
+    // Если изменились баллы администратора, пересчитываем общие баллы
+    if (pointsToSet !== undefined) {
+      await recalculateUserPoints(userId);
+      console.log(`Администратор изменил admin_points для пользователя ${userId} на ${pointsToSet}`);
     }
 
     res.json({ message: 'Данные пользователя обновлены' });
@@ -438,27 +454,21 @@ router.post('/events/:eventId/confirm-attendance', [
 
     const event = eventCheck.rows[0];
 
-    // Обновляем статус регистрации на "присутствовал"
+    // Обновляем статус регистрации на "присутствовал" и фиксируем начисленные баллы за событие
     await db.query(
-      'UPDATE event_registrations SET status = ? WHERE event_id = ? AND user_id = ?',
-      ['attended', eventId, userId]
+      'UPDATE event_registrations SET status = ?, points_awarded = ? WHERE event_id = ? AND user_id = ?',
+      ['attended', event.points || 0, eventId, userId]
     );
 
-    // Начисляем баллы за участие (если указаны)
-    if (event.points && event.points > 0) {
-      await db.query(`
-        UPDATE users 
-        SET points = points + ?, total_earned_points = total_earned_points + ? 
-        WHERE id = ?
-      `, [event.points, event.points, userId]);
-    }
+    // Пересчет общего и доступного баланса по новой модели
+    await recalculateUserPoints(userId);
 
     // Проверяем достижения после участия в мероприятии
     const earnedAchievements = await AchievementChecker.checkAfterEventParticipation(userId);
 
     res.json({ 
       message: 'Участие подтверждено',
-      pointsAwarded: event.points || 0,
+  pointsAwarded: Math.floor(event.points || 0),
       achievementsEarned: earnedAchievements.length,
       newAchievements: earnedAchievements.map(a => ({ id: a.id, title: a.title }))
     });
@@ -504,20 +514,18 @@ router.post('/events/:eventId/cancel-attendance', [
 
     const event = eventCheck.rows[0];
 
-    // Обновляем статус регистрации на "зарегистрирован"
+    // Возвращаем статус на "зарегистрирован" и обнуляем начисление за событие
     await db.query(
-      'UPDATE event_registrations SET status = ? WHERE event_id = ? AND user_id = ?',
+      'UPDATE event_registrations SET status = ?, points_awarded = 0 WHERE event_id = ? AND user_id = ?',
       ['registered', eventId, userId]
     );
 
-    // Вычитаем баллы за участие (если они были начислены)
-    if (event.points && event.points > 0) {
-      await db.query('UPDATE users SET points = GREATEST(0, points - ?) WHERE id = ?', [event.points, userId]);
-    }
+    // Пересчитываем баланс
+    await recalculateUserPoints(userId);
 
     res.json({ 
       message: 'Подтверждение участия отменено',
-      pointsDeducted: event.points || 0
+  pointsDeducted: Math.floor(event.points || 0)
     });
   } catch (error) {
     console.error('Ошибка отмены подтверждения участия:', error);
@@ -739,22 +747,18 @@ router.post('/achievements/:achievementId/assign', [
     const achievement = achievementCheck.rows[0];
     const user = userCheck.rows[0];
 
-    // Добавляем достижение пользователю
+  // Добавляем достижение пользователю
     await db.query(
       'INSERT INTO user_achievements (user_id, achievement_id, awarded_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
       [userId, achievementId]
     );
 
-    // Начисляем баллы за достижение
-    const newPoints = (user.points || 0) + achievement.points;
-    await db.query(
-      'UPDATE users SET points = ?, total_earned_points = total_earned_points + ? WHERE id = ?',
-      [newPoints, achievement.points, userId]
-    );
+  // Пересчитываем баланс по новой модели
+  await recalculateUserPoints(userId);
 
     res.json({ 
-      message: 'Достижение успешно назначено пользователю',
-      pointsAwarded: achievement.points
+  message: 'Достижение успешно назначено пользователю',
+  pointsAwarded: achievement.points
     });
   } catch (error) {
     console.error('Ошибка назначения достижения:', error);
@@ -800,19 +804,18 @@ router.post('/achievements/:achievementId/revoke', [
     const achievement = achievementCheck.rows[0];
     const user = userCheck.rows[0];
 
-    // Удаляем достижение у пользователя
+  // Удаляем достижение у пользователя
     await db.query(
       'DELETE FROM user_achievements WHERE user_id = ? AND achievement_id = ?',
       [userId, achievementId]
     );
 
-    // Вычитаем баллы за достижение (но не уменьшаем total_earned_points)
-    const newPoints = Math.max(0, (user.points || 0) - achievement.points);
-    await db.query('UPDATE users SET points = ? WHERE id = ?', [newPoints, userId]);
+  // Пересчитываем баланс по новой модели (total_earned уменьшится, points тоже пересчитаются)
+  await recalculateUserPoints(userId);
 
     res.json({ 
-      message: 'Достижение успешно отозвано у пользователя',
-      pointsDeducted: achievement.points
+  message: 'Достижение успешно отозвано у пользователя',
+  pointsDeducted: achievement.points
     });
   } catch (error) {
     console.error('Ошибка отзыва достижения:', error);
@@ -876,72 +879,6 @@ router.get('/export/users', adminAuth, async (req, res) => {
 });
 
 // === ОБНОВЛЕНИЕ БАЛЛОВ ПОЛЬЗОВАТЕЛЯ ===
-router.post('/users/:userId/update-points', [
-  adminAuth,
-  body('points').isInt().withMessage('Количество баллов должно быть числом')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { userId } = req.params;
-    const { points } = req.body;
-
-    console.log(`🎯 Обновление баллов пользователя ${userId}: ${points}`);
-
-    // Проверяем существование пользователя
-    const userCheck = await db.query('SELECT id, points FROM users WHERE id = ?', [userId]);
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({ message: 'Пользователь не найден' });
-    }
-
-    const currentPoints = userCheck.rows[0].points || 0;
-    const newPoints = currentPoints + points;
-
-    // Обновляем баллы пользователя
-    if (points > 0) {
-      // При начислении баллов обновляем и total_earned_points
-      await db.query('UPDATE users SET points = ?, total_earned_points = total_earned_points + ? WHERE id = ?', [newPoints, points, userId]);
-    } else {
-      // При списании баллов обновляем только points
-      await db.query('UPDATE users SET points = ? WHERE id = ?', [newPoints, userId]);
-    }
-
-    console.log(`✅ Баллы обновлены: ${currentPoints} → ${newPoints}`);
-
-    // Автоматически проверяем достижения после обновления баллов (только при начислении)
-    let earnedAchievements = [];
-    if (points > 0) {
-      try {
-        console.log(`🏆 Проверяем достижения после начисления баллов пользователю ${userId}`);
-        earnedAchievements = await AchievementChecker.checkAllAchievements(userId);
-        if (earnedAchievements.length > 0) {
-          console.log(`✨ Найдено и выдано ${earnedAchievements.length} новых достижений`);
-        }
-      } catch (error) {
-        console.error('Ошибка проверки достижений после начисления баллов:', error);
-      }
-    }
-
-    res.json({
-      message: 'Баллы успешно обновлены',
-      oldPoints: currentPoints,
-      addedPoints: points,
-      newPoints: newPoints,
-      earnedAchievements: earnedAchievements.map(a => ({
-        id: a.id,
-        title: a.title,
-        points: a.points
-      }))
-    });
-  } catch (error) {
-    console.error('Ошибка при обновлении баллов:', error);
-    res.status(500).json({ message: 'Ошибка сервера' });
-  }
-});
-
 // Проверить все достижения для пользователя
 router.post('/users/:userId/check-achievements', adminAuth, async (req, res) => {
   try {
@@ -1013,5 +950,188 @@ function generateUsersCSV(users) {
   ).join('\n');
   return header + rows;
 }
+
+// === УПРАВЛЕНИЕ БАЛЛАМИ ===
+
+// Добавление баллов пользователю
+router.post('/users/:userId/points/add', [
+  adminAuth,
+  body('points').isInt({ min: 1 }).withMessage('Количество баллов должно быть положительным числом'),
+  body('reason').optional().isString().withMessage('Причина должна быть строкой')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { userId } = req.params;
+    const { points, reason } = req.body;
+
+    // Проверяем, что пользователь существует
+    const userResult = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    // Добавляем баллы к admin_points
+    await db.query(`
+      UPDATE users 
+      SET admin_points = COALESCE(admin_points, 0) + ?
+      WHERE id = ?
+    `, [points, userId]);
+
+    // Пересчитываем общие баллы
+    await recalculateUserPoints(userId);
+
+    // Логируем действие (можно добавить таблицу логов позже)
+    console.log(`Администратор добавил ${points} баллов пользователю ${userId}${reason ? ` (причина: ${reason})` : ''}`);
+
+    res.json({ 
+      message: `Успешно добавлено ${points} баллов пользователю`,
+      user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name
+    });
+  } catch (error) {
+    console.error('Ошибка добавления баллов:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Снятие баллов с пользователя
+router.post('/users/:userId/points/subtract', [
+  adminAuth,
+  body('points').isInt({ min: 1 }).withMessage('Количество баллов должно быть положительным числом'),
+  body('reason').optional().isString().withMessage('Причина должна быть строкой')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { userId } = req.params;
+    const { points, reason } = req.body;
+
+    // Проверяем, что пользователь существует
+    const userResult = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    // Снимаем баллы с admin_points
+    await db.query(`
+      UPDATE users 
+      SET admin_points = COALESCE(admin_points, 0) - ?
+      WHERE id = ?
+    `, [points, userId]);
+
+    // Пересчитываем общие баллы
+    await recalculateUserPoints(userId);
+
+    // Логируем действие
+    console.log(`Администратор снял ${points} баллов с пользователя ${userId}${reason ? ` (причина: ${reason})` : ''}`);
+
+    res.json({ 
+      message: `Успешно снято ${points} баллов с пользователя`,
+      user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name
+    });
+  } catch (error) {
+    console.error('Ошибка снятия баллов:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Установка баллов администратора для пользователя
+router.put('/users/:userId/points/set-admin', [
+  adminAuth,
+  body('points').isInt({ min: 0 }).withMessage('Количество баллов должно быть неотрицательным числом'),
+  body('reason').optional().isString().withMessage('Причина должна быть строкой')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { userId } = req.params;
+    const { points, reason } = req.body;
+
+    // Проверяем, что пользователь существует
+    const userResult = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    // Устанавливаем admin_points
+    await db.query(`
+      UPDATE users 
+      SET admin_points = ?
+      WHERE id = ?
+    `, [points, userId]);
+
+    // Пересчитываем общие баллы
+    await recalculateUserPoints(userId);
+
+    // Логируем действие
+    console.log(`Администратор установил ${points} admin_points пользователю ${userId}${reason ? ` (причина: ${reason})` : ''}`);
+
+    res.json({ 
+      message: `Успешно установлено ${points} баллов от администратора для пользователя`,
+      user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name
+    });
+  } catch (error) {
+    console.error('Ошибка установки баллов:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Обновление баллов пользователя (для совместимости с frontend)
+router.post('/users/:userId/update-points', [
+  adminAuth,
+  body('points').isInt().withMessage('Количество баллов должно быть числом')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { userId } = req.params;
+    const { points } = req.body;
+
+    // Проверяем, что пользователь существует
+    const userResult = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    // Получаем текущие admin_points
+    const currentPointsResult = await db.query('SELECT admin_points FROM users WHERE id = ?', [userId]);
+    const currentAdminPoints = currentPointsResult.rows[0].admin_points || 0;
+
+    // Обновляем admin_points (добавляем к существующим)
+    const newAdminPoints = currentAdminPoints + points;
+    await db.query(`
+      UPDATE users 
+      SET admin_points = ?
+      WHERE id = ?
+    `, [newAdminPoints, userId]);
+
+    // Пересчитываем общие баллы
+    await recalculateUserPoints(userId);
+
+    // Логируем действие
+    console.log(`Администратор ${points >= 0 ? 'добавил' : 'снял'} ${Math.abs(points)} баллов пользователю ${userId} (было: ${currentAdminPoints}, стало: ${newAdminPoints})`);
+
+    res.json({ 
+      message: `Успешно ${points >= 0 ? 'добавлено' : 'списано'} ${Math.abs(points)} баллов`,
+      user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name,
+      totalPoints: newAdminPoints
+    });
+  } catch (error) {
+    console.error('Ошибка обновления баллов:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
 
 module.exports = router;

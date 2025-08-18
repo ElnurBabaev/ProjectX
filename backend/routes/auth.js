@@ -147,8 +147,8 @@ router.post('/login', [
         role: user.role,
         isAdmin: user.role === 'admin',
         avatar_url: user.avatar_url,
-        points: user.points || 0,
-        total_earned_points: user.total_earned_points || 0
+  points: Math.floor(user.points || 0),
+  total_earned_points: Math.floor(user.total_earned_points || 0)
       }
     });
   } catch (error) {
@@ -199,8 +199,8 @@ router.get('/profile', auth, async (req, res) => {
         role: user.role,
         isAdmin: user.role === 'admin',
         avatar_url: user.avatar_url,
-        points: user.points || 0,
-        total_earned_points: user.total_earned_points || 0,
+  points: Math.floor(user.points || 0),
+  total_earned_points: Math.floor(user.total_earned_points || 0),
         achievements_count: achievementsCount,
         events_count: eventsCount,
         created_at: user.created_at

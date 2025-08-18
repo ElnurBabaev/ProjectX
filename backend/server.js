@@ -11,6 +11,7 @@ const achievementRoutes = require('./routes/achievements');
 const productRoutes = require('./routes/products');
 const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
+const rankingRoutes = require('./routes/rankings');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -55,6 +56,7 @@ app.use('/api/achievements', achievementRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/rankings', rankingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -77,7 +79,8 @@ app.get('/api', (req, res) => {
       events: '/api/events',
       achievements: '/api/achievements',
       products: '/api/products',
-      admin: '/api/admin'
+      admin: '/api/admin',
+      rankings: '/api/rankings'
     }
   });
 });

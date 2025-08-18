@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Users, Trophy, ShoppingBag, Star, TrendingUp } from 'lucide-react';
+import { Calendar, Users, Trophy, ShoppingBag, Star, TrendingUp, BarChart3, Target } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { productsApi } from '../utils/api';
 import { Order } from '../utils/types';
+import { useRankingStats, useTopStudents } from '../hooks/useRankings';
 
 interface Activity {
   type: 'achievement' | 'event';
@@ -19,6 +21,10 @@ const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Хуки для рейтинга
+  const { data: rankingStats } = useRankingStats();
+  const { data: topStudents } = useTopStudents();
 
   useEffect(() => {
     loadData();
@@ -121,6 +127,13 @@ const Dashboard: React.FC = () => {
       color: 'from-yellow-500 to-orange-500'
     },
     {
+      title: 'Рейтинг',
+      description: 'Ваша позиция среди учеников',
+      icon: BarChart3,
+      link: '/rankings',
+      color: 'from-green-500 to-teal-500'
+    },
+    {
       title: 'Магазин',
       description: 'Потратить заработанные баллы',
       icon: ShoppingBag,
@@ -197,6 +210,123 @@ const Dashboard: React.FC = () => {
           ))}
         </motion.div>
 
+        {/* Рейтинг пользователя */}
+        {rankingStats && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-8"
+          >
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold">Ваш рейтинг</h2>
+                <Link
+                  to="/rankings"
+                  className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Посмотреть весь рейтинг
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/20 p-2 rounded-lg">
+                      <Target className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-white/80 text-sm">Позиция в школе</p>
+                      <p className="text-2xl font-bold">#{rankingStats.userStats.rank}</p>
+                      <p className="text-white/60 text-xs">из {rankingStats.totalStudents} учеников</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/20 p-2 rounded-lg">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-white/80 text-sm">Позиция класса</p>
+                      <p className="text-2xl font-bold">#{rankingStats.userStats.classRank}</p>
+                      <p className="text-white/60 text-xs">из {rankingStats.totalClasses} классов</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/20 p-2 rounded-lg">
+                      <Star className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-white/80 text-sm">Общие очки</p>
+                      <p className="text-2xl font-bold">{rankingStats.userStats.points}</p>
+                      <p className="text-white/60 text-xs">{rankingStats.userStats.achievements} достижений</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Топ-3 учеников */}
+        {topStudents && topStudents.topStudents.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">
+              🏆 Лидеры школы
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {topStudents.topStudents.slice(0, 3).map((student, index) => (
+                <motion.div
+                  key={student.id}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 * index }}
+                  className={`bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-white/20 ${
+                    student.id === user?.id ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                      index === 0 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                      index === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-500' :
+                      'bg-gradient-to-r from-amber-400 to-amber-600'
+                    }`}>
+                      <span className="text-2xl">
+                        {index === 0 ? '👑' : index === 1 ? '🥈' : '🥉'}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-lg text-gray-900">
+                      {student.first_name} {student.last_name}
+                      {student.id === user?.id && <span className="text-blue-600 block text-sm">(Вы)</span>}
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      {student.class_grade}{student.class_letter} класс
+                    </p>
+                    <div className="mt-4 flex items-center justify-center gap-4">
+                      <div className="text-center">
+                        <p className="font-bold text-lg text-yellow-600">{student.total_points}</p>
+                        <p className="text-gray-500 text-xs">очков</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-bold text-lg text-blue-600">{student.achievements_count}</p>
+                        <p className="text-gray-500 text-xs">достижений</p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         {/* Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -207,7 +337,7 @@ const Dashboard: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-6">
             Быстрые действия
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {quickActions.map((action, index) => (
               <motion.a
                 key={action.title}

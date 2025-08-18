@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { auth, adminAuth } = require('../middleware/auth');
 const AchievementChecker = require('../utils/achievementChecker');
+const { recalculateUserPoints } = require('../utils/pointsCalculator');
 
 const router = express.Router();
 
@@ -94,9 +95,6 @@ router.post('/order', [
       });
     }
 
-    // Списываем баллы
-    await db.query('UPDATE users SET points = points - ? WHERE id = ?', [totalAmount, userId]);
-
     // Создаем заказ
     const orderResult = await db.query(
       'INSERT INTO orders (user_id, total_amount, shipping_address, notes) VALUES (?, ?, ?, ?)',
@@ -121,6 +119,9 @@ router.post('/order', [
 
     // Проверяем достижения после покупки
     const earnedAchievements = await AchievementChecker.checkAfterPurchase(userId);
+
+  // Пересчитываем баланс пользователя с учетом покупки
+  await recalculateUserPoints(userId);
 
     res.status(201).json({
       message: 'Заказ успешно создан',

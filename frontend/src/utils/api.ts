@@ -161,7 +161,7 @@ export const adminApi = {
         lastName: u.last_name,
         classGrade: u.class_grade,
         classLetter: u.class_letter,
-        personalPoints: u.points || 0,
+        personalPoints: u.personalPoints || 0,
         role: u.role,
         createdAt: u.created_at,
       }))
