@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   ShoppingBag, 
   Search, 
   Edit, 
@@ -9,7 +9,10 @@ import {
   Star,
   DollarSign,
   X,
-  Eye
+  Eye,
+  EyeOff,
+  List,
+  Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ImageUploader from '../ImageUploader';
@@ -27,6 +30,8 @@ interface Product {
 }
 
 const ProductManagement: React.FC = () => {
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+  const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +45,7 @@ const ProductManagement: React.FC = () => {
     if (!url) return '';
     if (url.startsWith('http')) return url; // уже полный URL
     if (url.startsWith('/uploads/')) {
-      const fullUrl = `http://localhost:5000${url}`;
+      const fullUrl = `${API_ORIGIN}${url}`;
       console.log('🔧 Преобразование URL в ProductManagement:', url, '→', fullUrl);
       return fullUrl;
     }
@@ -66,7 +71,8 @@ const ProductManagement: React.FC = () => {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/products', {
+  // Админ-эндпоинт возвращает все товары (включая скрытые)
+  const response = await fetch(`${API_BASE_URL}/admin/products`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -76,7 +82,19 @@ const ProductManagement: React.FC = () => {
       if (!response.ok) throw new Error('Ошибка загрузки товаров');
       
       const data = await response.json();
-      setProducts(data.products || []);
+      // Приводим к локальной форме, чтобы поля были консистентными
+      const mapped: Product[] = (data.products || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        category: p.category,
+        imageUrl: p.image_url || '',
+        stock: p.stock_quantity,
+        active: p.is_active === 1 || p.is_active === true,
+        purchaseCount: p.purchaseCount
+      }));
+      setProducts(mapped);
     } catch (error) {
       toast.error('Ошибка загрузки товаров');
       console.error(error);
@@ -88,7 +106,7 @@ const ProductManagement: React.FC = () => {
   const createProduct = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/admin/products', {
+    const response = await fetch(`${API_BASE_URL}/admin/products`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -99,9 +117,9 @@ const ProductManagement: React.FC = () => {
           description: newProduct.description,
           price: newProduct.price,
           category: newProduct.category,
-          imageUrl: newProduct.imageUrl,
-          stock_quantity: newProduct.stock,
-          active: newProduct.active
+      imageUrl: newProduct.imageUrl,
+      stock_quantity: newProduct.stock,
+      active: newProduct.active
         })
       });
 
@@ -145,7 +163,7 @@ const ProductManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/products/${selectedProduct.id}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/products/${selectedProduct.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -156,9 +174,9 @@ const ProductManagement: React.FC = () => {
           description: selectedProduct.description,
           price: selectedProduct.price,
           category: selectedProduct.category,
-          imageUrl: selectedProduct.imageUrl,
-          stock_quantity: selectedProduct.stock,
-          active: selectedProduct.active
+      imageUrl: selectedProduct.imageUrl,
+      stock_quantity: selectedProduct.stock,
+      active: selectedProduct.active
         })
       });
 
@@ -190,7 +208,7 @@ const ProductManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/products/${productId}`, {
+  const response = await fetch(`${API_BASE_URL}/admin/products/${productId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -213,13 +231,25 @@ const ProductManagement: React.FC = () => {
   const toggleProductStatus = async (productId: number, active: boolean) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/products/${productId}`, {
+      // На сервере требуется полный набор полей при обновлении товара
+      const p = products.find(pr => pr.id === productId);
+      if (!p) throw new Error('Товар не найден в списке');
+
+      const response = await fetch(`${API_BASE_URL}/admin/products/${productId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ active })
+        body: JSON.stringify({
+          name: p.name,
+          description: p.description,
+          price: p.price,
+          category: p.category,
+          imageUrl: p.imageUrl,
+          stock_quantity: p.stock,
+          active
+        })
       });
 
       if (!response.ok) {
@@ -237,7 +267,7 @@ const ProductManagement: React.FC = () => {
   const viewPurchases = async (productId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/products/${productId}/purchases`, {
+  const response = await fetch(`${API_BASE_URL}/admin/products/${productId}/purchases`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -250,6 +280,42 @@ const ProductManagement: React.FC = () => {
       alert(`Покупки товара:\n${data.purchases.map((p: any) => `${p.firstName} ${p.lastName} - ${new Date(p.purchaseDate).toLocaleDateString('ru-RU')}`).join('\n')}`);
     } catch (error: any) {
       toast.error(error.message);
+    }
+  };
+
+  const exportPurchases = async (productId: number, productName: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Необходима авторизация');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/products/${productId}/export-purchases`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Ошибка экспорта' }));
+        throw new Error(errorData.message || 'Ошибка экспорта');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Покупки_${productName.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Покупки успешно экспортированы');
+    } catch (error: any) {
+      console.error('Error exporting purchases:', error);
+      toast.error(error.message || 'Ошибка экспорта покупок');
     }
   };
 
@@ -369,36 +435,56 @@ const ProductManagement: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
+                {/* Покупки */}
                 <button
                   onClick={() => viewPurchases(product.id)}
-                  className="flex-1 min-w-0 px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                  className="w-9 h-9 flex items-center justify-center bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                  title="Показать покупки"
+                  aria-label="Показать покупки"
                 >
-                  <Eye className="w-4 h-4 inline mr-1" />
-                  Покупки
+                  <List className="w-4 h-4" />
                 </button>
+                {/* Экспорт */}
+                <button
+                  onClick={() => exportPurchases(product.id, product.name)}
+                  className="w-9 h-9 flex items-center justify-center bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                  title="Экспортировать покупки в Excel"
+                  aria-label="Экспортировать покупки в Excel"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                {/* Скрыть/Показать */}
                 <button
                   onClick={() => toggleProductStatus(product.id, !product.active)}
-                  className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                  className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${
                     product.active 
                       ? 'bg-red-100 text-red-700 hover:bg-red-200'
                       : 'bg-green-100 text-green-700 hover:bg-green-200'
                   }`}
+                  title={product.active ? 'Скрыть товар' : 'Показать товар'}
+                  aria-label={product.active ? 'Скрыть товар' : 'Показать товар'}
                 >
-                  {product.active ? 'Скрыть' : 'Показать'}
+                  {product.active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
+                {/* Редактировать */}
                 <button
                   onClick={() => {
                     setSelectedProduct(product);
                     setShowEditModal(true);
                   }}
-                  className="px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  className="w-9 h-9 flex items-center justify-center text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  title="Редактировать товар"
+                  aria-label="Редактировать товар"
                 >
                   <Edit className="w-4 h-4" />
                 </button>
+                {/* Удалить */}
                 <button
                   onClick={() => deleteProduct(product.id)}
-                  className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  className="w-9 h-9 flex items-center justify-center text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Удалить товар"
+                  aria-label="Удалить товар"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

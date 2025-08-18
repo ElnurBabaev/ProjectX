@@ -39,6 +39,8 @@ interface Event {
 }
 
 const EventManagement: React.FC = () => {
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+  const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,7 +66,7 @@ const EventManagement: React.FC = () => {
     if (!url) return '';
     if (url.startsWith('http')) return url; // уже полный URL
     if (url.startsWith('/uploads/')) {
-      const fullUrl = `http://localhost:5000${url}`;
+      const fullUrl = `${API_ORIGIN}${url}`;
       console.log('🔧 Преобразование URL:', url, '→', fullUrl);
       return fullUrl;
     }
@@ -89,7 +91,7 @@ const EventManagement: React.FC = () => {
         return;
       }
       
-      const response = await fetch('http://localhost:5000/api/events', {
+  const response = await fetch(`${API_BASE_URL}/events`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -118,7 +120,7 @@ const EventManagement: React.FC = () => {
   const createEvent = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/events', {
+  const response = await fetch(`${API_BASE_URL}/events`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -162,7 +164,7 @@ const EventManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/events/${selectedEvent.id}`, {
+  const response = await fetch(`${API_BASE_URL}/events/${selectedEvent.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -198,7 +200,7 @@ const EventManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/events/${eventId}`, {
+  const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -227,7 +229,7 @@ const EventManagement: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}/participants`, {
+  const response = await fetch(`${API_BASE_URL}/admin/events/${eventId}/participants`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -252,7 +254,7 @@ const EventManagement: React.FC = () => {
   const confirmAttendance = async (eventId: number, userId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}/confirm-attendance`, {
+  const response = await fetch(`${API_BASE_URL}/admin/events/${eventId}/confirm-attendance`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -277,7 +279,7 @@ const EventManagement: React.FC = () => {
   const cancelAttendance = async (eventId: number, userId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}/cancel-attendance`, {
+  const response = await fetch(`${API_BASE_URL}/admin/events/${eventId}/cancel-attendance`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -313,7 +315,7 @@ const EventManagement: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/api/admin/events/${eventId}/export-participants`, {
+  const response = await fetch(`${API_BASE_URL}/admin/events/${eventId}/export-participants`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }

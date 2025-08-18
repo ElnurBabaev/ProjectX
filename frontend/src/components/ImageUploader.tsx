@@ -15,11 +15,15 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   label = "Изображение",
   accept = "image/*"
 }) => {
+  // Базовые адреса API/статических файлов из окружения
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+  const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
   // Функция для получения полного URL изображения
   const getFullImageUrl = (url: string) => {
     if (!url) return '';
     if (url.startsWith('http')) return url; // уже полный URL
-    if (url.startsWith('/uploads/')) return `http://localhost:5000${url}`; // относительный путь от нашего сервера
+    if (url.startsWith('/uploads/')) return `${API_ORIGIN}${url}`; // относительный путь от нашего сервера
     return url; // внешняя ссылка или что-то еще
   };
 
@@ -62,7 +66,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       formData.append('image', file);
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/upload/upload-image', {
+  const response = await fetch(`${API_BASE_URL}/upload/upload-image`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -77,7 +81,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       const data = await response.json();
       
       // Обновляем preview с полным URL, но сохраняем относительный путь
-      setPreviewUrl(`http://localhost:5000${data.imageUrl}`);
+  setPreviewUrl(`${API_ORIGIN}${data.imageUrl}`);
       setInputUrl(data.imageUrl); // показываем относительный путь в поле ввода
       onImageChange(data.imageUrl); // относительный путь для БД
       

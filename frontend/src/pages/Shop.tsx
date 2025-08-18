@@ -7,6 +7,8 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const Shop: React.FC = () => {
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+  const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
   const { user, refreshUser } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -19,7 +21,7 @@ const Shop: React.FC = () => {
     if (!url) return '';
     if (url.startsWith('http')) return url; // уже полный URL
     if (url.startsWith('/uploads/')) {
-      const fullUrl = `http://localhost:5000${url}`;
+      const fullUrl = `${API_ORIGIN}${url}`;
       console.log('🔧 Преобразование URL в Shop:', url, '→', fullUrl);
       return fullUrl;
     }

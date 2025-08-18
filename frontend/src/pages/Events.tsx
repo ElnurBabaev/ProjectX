@@ -6,6 +6,8 @@ import { Event } from '../utils/types';
 import toast from 'react-hot-toast';
 
 const Events: React.FC = () => {
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+  const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -15,7 +17,7 @@ const Events: React.FC = () => {
     if (!url) return '';
     if (url.startsWith('http')) return url; // уже полный URL
     if (url.startsWith('/uploads/')) {
-      const fullUrl = `http://localhost:5000${url}`;
+      const fullUrl = `${API_ORIGIN}${url}`;
       console.log('🔧 Преобразование URL в Events:', url, '→', fullUrl);
       return fullUrl;
     }

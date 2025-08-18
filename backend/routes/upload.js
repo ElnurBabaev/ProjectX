@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { adminAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -8,7 +9,10 @@ const router = express.Router();
 // Настройка multer для загрузки файлов
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/');
+    const dest = path.join(__dirname, '..', 'uploads');
+    // гарантируем, что папка существует
+    fs.mkdirSync(dest, { recursive: true });
+    cb(null, dest);
   },
   filename: function (req, file, cb) {
     // Генерируем уникальное имя файла

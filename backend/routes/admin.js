@@ -669,6 +669,83 @@ router.get('/products/:id/purchases', adminAuth, async (req, res) => {
   }
 });
 
+// Экспорт покупок товара в Excel (Admin)
+router.get('/products/:id/export-purchases', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Информация о товаре
+    const productResult = await db.query('SELECT name FROM products WHERE id = ?', [id]);
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Товар не найден' });
+    }
+    const productName = productResult.rows[0].name;
+
+    // Покупки по товару
+    const purchasesResult = await db.query(`
+      SELECT u.first_name as firstName, 
+             u.last_name as lastName,
+             u.class_grade as classGrade,
+             u.class_letter as classLetter,
+             oi.quantity,
+             oi.price,
+             (oi.quantity * oi.price) as total,
+             o.created_at as purchaseDate
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      JOIN users u ON o.user_id = u.id
+      WHERE oi.product_id = ?
+      ORDER BY o.created_at DESC
+    `, [id]);
+
+    if (purchasesResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Покупок по этому товару нет' });
+    }
+
+    // Подготовка данных для Excel
+    const excelData = purchasesResult.rows.map(p => ({
+      'Имя': p.firstName,
+      'Фамилия': p.lastName,
+      'Класс': (p.classGrade && p.classLetter) ? `${p.classGrade}${p.classLetter}` : '',
+      'Количество': p.quantity,
+      'Цена (баллы)': p.price,
+      'Сумма (баллы)': p.total,
+      'Дата покупки': new Date(p.purchaseDate).toLocaleDateString('ru-RU', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }));
+
+    const worksheet = xlsx.utils.json_to_sheet(excelData);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, 'Покупки');
+
+    worksheet['!cols'] = [
+      { width: 15 }, // Имя
+      { width: 15 }, // Фамилия
+      { width: 8 },  // Класс
+      { width: 10 }, // Количество
+      { width: 14 }, // Цена
+      { width: 14 }, // Сумма
+      { width: 20 }  // Дата
+    ];
+
+    const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    const fileName = `Покупки_${productName.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    res.setHeader('Content-Length', buffer.length);
+    res.send(buffer);
+  } catch (error) {
+    console.error('Ошибка экспорта покупок товара:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 // === УПРАВЛЕНИЕ ДОСТИЖЕНИЯМИ (Admin) ===
 
 // Получение всех достижений для админа

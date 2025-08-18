@@ -42,12 +42,13 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Статические файлы с CORS заголовками
+const path = require('path');
 app.use('/uploads', (req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
-}, express.static('uploads'));
+}, express.static(path.join(__dirname, 'uploads')));
 
 // Маршруты API
 app.use('/api/auth', authRoutes);
