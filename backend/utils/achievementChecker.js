@@ -5,6 +5,8 @@ class AchievementChecker {
   // Проверить все условия достижений для пользователя
   static async checkAllAchievements(userId) {
     try {
+      console.log(`Checking achievements for user ${userId}`);
+
       // Получаем все достижения с условиями, которые пользователь еще не получил
       const achievementsResult = await db.query(`
         SELECT a.* FROM achievements a
@@ -16,10 +18,13 @@ class AchievementChecker {
       `, [userId]);
 
       const achievements = achievementsResult.rows;
+      console.log(`Found ${achievements.length} achievements to check:`, achievements.map(a => a.title));
+
       const earnedAchievements = [];
 
       for (const achievement of achievements) {
         const isEarned = await this.checkAchievementCondition(userId, achievement);
+        console.log(`Achievement "${achievement.title}": ${isEarned ? 'earned' : 'not earned'}`);
         if (isEarned) {
           await this.awardAchievement(userId, achievement.id, 'Автоматически назначено системой');
           earnedAchievements.push(achievement);
@@ -36,15 +41,18 @@ class AchievementChecker {
   // Проверить конкретное условие достижения
   static async checkAchievementCondition(userId, achievement) {
     const requirements = achievement.requirements.toLowerCase();
+    console.log(`Checking condition for "${achievement.title}": "${requirements}"`);
 
     try {
       // Участие в мероприятиях
       if (requirements.includes('участие') && requirements.includes('мероприятии')) {
         const eventCount = await this.getEventParticipationCount(userId);
+        console.log(`User ${userId} has ${eventCount} event participations`);
         
         // Ищем числа в требованиях
         const numbers = requirements.match(/\d+/g);
         const requiredCount = numbers ? parseInt(numbers[0]) : 1;
+        console.log(`Required: ${requiredCount}`);
         
         return eventCount >= requiredCount;
       }
@@ -53,9 +61,11 @@ class AchievementChecker {
       if (requirements.includes('балл') || requirements.includes('очк')) {
         const userPointsResult = await db.query('SELECT total_earned_points FROM users WHERE id = ?', [userId]);
         const userPoints = userPointsResult.rows[0]?.total_earned_points || 0;
+        console.log(`User ${userId} has ${userPoints} total earned points`);
         
         const numbers = requirements.match(/\d+/g);
         const requiredPoints = numbers ? parseInt(numbers[0]) : 50;
+        console.log(`Required points: ${requiredPoints}`);
         
         return userPoints >= requiredPoints;
       }
@@ -100,7 +110,9 @@ class AchievementChecker {
       'SELECT COUNT(*) as count FROM event_registrations WHERE user_id = ? AND status = "attended"', 
       [userId]
     );
-    return result.rows[0]?.count || 0;
+    const count = result.rows[0]?.count || 0;
+    console.log(`Event participation count for user ${userId}: ${count}`);
+    return count;
   }
 
   // Получить количество достижений пользователя

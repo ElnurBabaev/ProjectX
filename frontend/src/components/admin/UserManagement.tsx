@@ -33,6 +33,9 @@ const UserManagement: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showUserEventsModal, setShowUserEventsModal] = useState(false);
+  const [userEvents, setUserEvents] = useState<any[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const [newUser, setNewUser] = useState({
@@ -153,6 +156,19 @@ const UserManagement: React.FC = () => {
       await fetchUsers(); // Обновляем список пользователей
     } catch (error: any) {
       toast.error('Ошибка проверки достижений');
+    }
+  };
+
+  const fetchUserEvents = async (userId: number) => {
+    setLoadingEvents(true);
+    try {
+      const { data } = await api.get(`/admin/users/${userId}/events`);
+      setUserEvents(data.events || []);
+      setShowUserEventsModal(true);
+    } catch (error: any) {
+      toast.error('Ошибка загрузки мероприятий пользователя');
+    } finally {
+      setLoadingEvents(false);
     }
   };
 
@@ -330,6 +346,16 @@ const UserManagement: React.FC = () => {
                         title="Проверить достижения"
                       >
                         <Trophy className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedUser(user);
+                          fetchUserEvents(user.id);
+                        }}
+                        className="text-purple-600 hover:text-purple-900"
+                        title="Посмотреть мероприятия"
+                      >
+                        <Users className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => {
@@ -568,6 +594,82 @@ const UserManagement: React.FC = () => {
                 className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
               >
                 Изменить пароль
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Events Modal */}
+      {showUserEventsModal && selectedUser && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => {
+            setShowUserEventsModal(false);
+            setSelectedUser(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Мероприятия пользователя {selectedUser.firstName} {selectedUser.lastName}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowUserEventsModal(false);
+                  setSelectedUser(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            {loadingEvents ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : userEvents.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">Пользователь не участвовал ни в одном мероприятии</p>
+            ) : (
+              <div className="space-y-4">
+                {userEvents.map((event: any) => (
+                  <div key={event.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">{event.title}</h4>
+                        <p className="text-sm text-gray-600 mt-1">{event.description}</p>
+                        <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                          <span>📅 {new Date(event.start_date).toLocaleDateString('ru-RU')}</span>
+                          <span>📍 {event.location}</span>
+                          <span>🎯 {event.points} баллов</span>
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          event.status === 'attended' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {event.status === 'attended' ? 'Участвовал' : 'Зарегистрирован'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end mt-6 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowUserEventsModal(false);
+                  setSelectedUser(null);
+                }}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Закрыть
               </button>
             </div>
           </div>

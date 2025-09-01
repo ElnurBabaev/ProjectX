@@ -133,7 +133,8 @@ const EventManagement: React.FC = () => {
           end_date: newEvent.endDate || null,
           location: newEvent.location,
           max_participants: newEvent.maxParticipants,
-          image_url: newEvent.imageUrl || null
+          image_url: newEvent.imageUrl || null,
+          points: 10
         })
       });
 
@@ -162,6 +163,12 @@ const EventManagement: React.FC = () => {
   const updateEvent = async () => {
     if (!selectedEvent) return;
 
+    // Проверка обязательных полей
+    if (!selectedEvent.title.trim() || !selectedEvent.description.trim() || !selectedEvent.start_date || !selectedEvent.location.trim()) {
+      toast.error('Заполните все обязательные поля');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
   const response = await fetch(`${API_BASE_URL}/events/${selectedEvent.id}`, {
@@ -177,7 +184,9 @@ const EventManagement: React.FC = () => {
           end_date: selectedEvent.end_date || null,
           location: selectedEvent.location,
           max_participants: selectedEvent.max_participants,
-          image_url: selectedEvent.image_url || null
+          image_url: selectedEvent.image_url || null,
+          points: selectedEvent.points || 10,
+          status: selectedEvent.status || 'upcoming'
         })
       });
 
@@ -302,7 +311,11 @@ const EventManagement: React.FC = () => {
   };
 
   const openParticipantsModal = async (event: Event) => {
-    setSelectedEvent(event);
+    setSelectedEvent({
+      ...event,
+      start_date: event.start_date?.replace(' ', 'T') || '',
+      end_date: event.end_date?.replace(' ', 'T') || ''
+    });
     setShowParticipantsModal(true);
     await fetchParticipants(event.id);
   };
@@ -458,7 +471,11 @@ const EventManagement: React.FC = () => {
                 </button>
                 <button
                   onClick={() => {
-                    setSelectedEvent(event);
+                    setSelectedEvent({
+                      ...event,
+                      start_date: event.start_date?.replace(' ', 'T') || '',
+                      end_date: event.end_date?.replace(' ', 'T') || ''
+                    });
                     setShowEditModal(true);
                   }}
                   className="px-3 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"

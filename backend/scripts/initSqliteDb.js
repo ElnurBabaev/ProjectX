@@ -38,6 +38,7 @@ async function initDatabase() {
         current_participants INTEGER DEFAULT 0,
         image_url TEXT,
         status TEXT DEFAULT 'upcoming' CHECK(status IN ('upcoming', 'ongoing', 'completed', 'cancelled')),
+        points INTEGER DEFAULT 10,
         created_by INTEGER REFERENCES users(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -51,6 +52,7 @@ async function initDatabase() {
         event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         status TEXT DEFAULT 'registered' CHECK(status IN ('registered', 'attended', 'missed', 'cancelled')),
+        points_awarded INTEGER DEFAULT 0,
         registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(event_id, user_id)
       )
@@ -202,6 +204,7 @@ async function addTestData() {
         icon: '🌟',
         type: 'participation',
         points: 10,
+        requirements: 'Участие в 1 мероприятии',
         badge_color: '#10B981'
       },
       {
@@ -210,6 +213,7 @@ async function addTestData() {
         icon: '🏃',
         type: 'participation',
         points: 50,
+        requirements: 'Участие в 5 мероприятиях',
         badge_color: '#3B82F6'
       },
       {
@@ -218,15 +222,16 @@ async function addTestData() {
         icon: '👑',
         type: 'leadership',
         points: 100,
+        requirements: 'Организация мероприятия',
         badge_color: '#F59E0B'
       }
     ];
 
     for (const achievement of achievements) {
       await database.query(`
-        INSERT INTO achievements (title, description, icon, type, points, badge_color)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [achievement.title, achievement.description, achievement.icon, achievement.type, achievement.points, achievement.badge_color]);
+        INSERT INTO achievements (title, description, icon, type, points, requirements, badge_color)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [achievement.title, achievement.description, achievement.icon, achievement.type, achievement.points, achievement.requirements, achievement.badge_color]);
     }
 
     // Добавляем товары

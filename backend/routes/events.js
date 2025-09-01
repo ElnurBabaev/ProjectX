@@ -196,8 +196,12 @@ router.put('/:id', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
+
+    console.log('PUT /events/:id called with id:', req.params.id);
+    console.log('Request body:', req.body);
 
     const { title, description, start_date, end_date, location, max_participants, image_url, status, points } = req.body;
     
@@ -207,7 +211,10 @@ router.put('/:id', [
       WHERE id = ?
     `, [title, description, start_date, end_date, location, max_participants || null, image_url || null, status || 'upcoming', points || 10, req.params.id]);
 
+    console.log('Update result:', result);
+
     if (result.affectedRows === 0) {
+      console.log('No rows affected, event not found');
       return res.status(404).json({ message: 'Мероприятие не найдено' });
     }
 

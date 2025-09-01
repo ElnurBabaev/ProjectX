@@ -144,6 +144,45 @@ router.post('/users', [
   }
 });
 
+// Получение мероприятий пользователя
+router.get('/users/:userId/events', adminAuth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Проверяем существование пользователя
+    const userResult = await db.query('SELECT id, first_name, last_name FROM users WHERE id = ?', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    // Получаем мероприятия пользователя
+    const eventsResult = await db.query(`
+      SELECT 
+        e.id,
+        e.title,
+        e.description,
+        e.start_date,
+        e.end_date,
+        e.location,
+        e.points,
+        er.status,
+        er.registered_at
+      FROM events e
+      JOIN event_registrations er ON e.id = er.event_id
+      WHERE er.user_id = ?
+      ORDER BY e.start_date DESC
+    `, [userId]);
+
+    res.json({
+      user: userResult.rows[0],
+      events: eventsResult.rows
+    });
+  } catch (error) {
+    console.error('Ошибка получения мероприятий пользователя:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 // Обновление пользователя
 router.put('/users/:id', [
   adminAuth,
@@ -424,8 +463,11 @@ router.post('/events/:eventId/confirm-attendance', [
   body('userId').isInt().withMessage('ID пользователя должен быть числом')
 ], async (req, res) => {
   try {
+    console.log('POST /admin/events/:eventId/confirm-attendance called with eventId:', req.params.eventId, 'userId:', req.body.userId);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -460,11 +502,17 @@ router.post('/events/:eventId/confirm-attendance', [
       ['attended', event.points || 0, eventId, userId]
     );
 
+    console.log('Updated registration status to attended');
+
     // Пересчет общего и доступного баланса по новой модели
     await recalculateUserPoints(userId);
 
+    console.log('Recalculated user points');
+
     // Проверяем достижения после участия в мероприятии
     const earnedAchievements = await AchievementChecker.checkAfterEventParticipation(userId);
+
+    console.log('Checked achievements:', earnedAchievements);
 
     res.json({ 
       message: 'Участие подтверждено',
@@ -1061,12 +1109,19 @@ router.post('/users/:userId/points/add', [
     // Пересчитываем общие баллы
     await recalculateUserPoints(userId);
 
+    // Проверяем достижения после изменения баллов
+    const earnedAchievements = await AchievementChecker.checkAfterPointsEarned(userId);
+
     // Логируем действие (можно добавить таблицу логов позже)
     console.log(`Администратор добавил ${points} баллов пользователю ${userId}${reason ? ` (причина: ${reason})` : ''}`);
+    if (earnedAchievements.length > 0) {
+      console.log(`Пользователь ${userId} получил достижения:`, earnedAchievements.map(a => a.title));
+    }
 
     res.json({ 
       message: `Успешно добавлено ${points} баллов пользователю`,
-      user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name
+      user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name,
+      earnedAchievements: earnedAchievements
     });
   } catch (error) {
     console.error('Ошибка добавления баллов:', error);
@@ -1105,12 +1160,19 @@ router.post('/users/:userId/points/subtract', [
     // Пересчитываем общие баллы
     await recalculateUserPoints(userId);
 
+    // Проверяем достижения после изменения баллов
+    const earnedAchievements = await AchievementChecker.checkAfterPointsEarned(userId);
+
     // Логируем действие
     console.log(`Администратор снял ${points} баллов с пользователя ${userId}${reason ? ` (причина: ${reason})` : ''}`);
+    if (earnedAchievements.length > 0) {
+      console.log(`Пользователь ${userId} получил достижения:`, earnedAchievements.map(a => a.title));
+    }
 
     res.json({ 
       message: `Успешно снято ${points} баллов с пользователя`,
-      user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name
+      user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name,
+      earnedAchievements: earnedAchievements
     });
   } catch (error) {
     console.error('Ошибка снятия баллов:', error);
@@ -1149,12 +1211,19 @@ router.put('/users/:userId/points/set-admin', [
     // Пересчитываем общие баллы
     await recalculateUserPoints(userId);
 
+    // Проверяем достижения после изменения баллов
+    const earnedAchievements = await AchievementChecker.checkAfterPointsEarned(userId);
+
     // Логируем действие
     console.log(`Администратор установил ${points} admin_points пользователю ${userId}${reason ? ` (причина: ${reason})` : ''}`);
+    if (earnedAchievements.length > 0) {
+      console.log(`Пользователь ${userId} получил достижения:`, earnedAchievements.map(a => a.title));
+    }
 
     res.json({ 
       message: `Успешно установлено ${points} баллов от администратора для пользователя`,
-      user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name
+      user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name,
+      earnedAchievements: earnedAchievements
     });
   } catch (error) {
     console.error('Ошибка установки баллов:', error);
@@ -1197,13 +1266,20 @@ router.post('/users/:userId/update-points', [
     // Пересчитываем общие баллы
     await recalculateUserPoints(userId);
 
+    // Проверяем достижения после изменения баллов
+    const earnedAchievements = await AchievementChecker.checkAfterPointsEarned(userId);
+
     // Логируем действие
     console.log(`Администратор ${points >= 0 ? 'добавил' : 'снял'} ${Math.abs(points)} баллов пользователю ${userId} (было: ${currentAdminPoints}, стало: ${newAdminPoints})`);
+    if (earnedAchievements.length > 0) {
+      console.log(`Пользователь ${userId} получил достижения:`, earnedAchievements.map(a => a.title));
+    }
 
     res.json({ 
       message: `Успешно ${points >= 0 ? 'добавлено' : 'списано'} ${Math.abs(points)} баллов`,
       user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name,
-      totalPoints: newAdminPoints
+      totalPoints: newAdminPoints,
+      earnedAchievements: earnedAchievements
     });
   } catch (error) {
     console.error('Ошибка обновления баллов:', error);
