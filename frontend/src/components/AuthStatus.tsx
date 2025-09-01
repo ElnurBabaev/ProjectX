@@ -33,7 +33,7 @@ const AuthStatus: React.FC = () => {
     >
       <div className="flex items-center gap-2 text-sm">
         <Shield className="w-4 h-4 text-green-500" />
-        <span className="text-green-700 font-medium">{user.firstName}</span>
+        <span className="text-green-700 font-medium">{user.first_name}</span>
         <CheckCircle className="w-4 h-4 text-green-500" />
       </div>
     </motion.div>
