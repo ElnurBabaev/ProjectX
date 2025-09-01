@@ -67,7 +67,7 @@ router.get('/statistics', adminAuth, async (req, res) => {
 router.get('/users', adminAuth, async (req, res) => {
   try {
     const { role, search } = req.query;
-    let query = 'SELECT id, login, first_name, last_name, class_grade, class_letter, role, total_points as personalPoints, admin_points, created_at FROM users';
+    let query = 'SELECT id, login, first_name, last_name, class_grade, class_letter, role, total_earned_points as personalPoints, points, admin_points, created_at FROM users';
     const params = [];
 
     if (role) {

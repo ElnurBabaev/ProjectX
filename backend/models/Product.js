@@ -2,39 +2,38 @@ const db = require('../config/database');
 
 class Product {
   static async create(productData) {
-    const { title, description, price, image_url, stock_quantity } = productData;
+    const { name, description, price, image_url, stock_quantity, category } = productData;
     
     const query = `
-      INSERT INTO products (title, description, price, image_url, stock_quantity, is_available)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *
+      INSERT INTO products (name, description, price, image_url, stock_quantity, category)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
     
-    const result = await db.query(query, [title, description, price, image_url, stock_quantity, true]);
-    return result.rows[0];
+    const result = await db.query(query, [name, description, price, image_url, stock_quantity, category]);
+    // Получить созданный продукт
+    const productResult = await db.query('SELECT * FROM products WHERE id = ?', [result.insertId]);
+    return productResult.rows[0];
   }
 
   static async getAll() {
-    const query = 'SELECT * FROM products WHERE is_available = true ORDER BY created_at DESC';
+    const query = 'SELECT * FROM products WHERE is_active = 1 ORDER BY created_at DESC';
     const result = await db.query(query);
     return result.rows;
   }
 
   static async findById(id) {
-    const query = 'SELECT * FROM products WHERE id = $1 AND is_available = true';
+    const query = 'SELECT * FROM products WHERE id = ? AND is_active = 1';
     const result = await db.query(query, [id]);
     return result.rows[0];
   }
 
   static async purchase(productId, userId) {
-    const client = await db.pool.connect();
-    
     try {
-      await client.query('BEGIN');
-      
-      // Проверяем наличие товара и достаточность баллов
-      const productQuery = 'SELECT * FROM products WHERE id = $1 AND is_available = true FOR UPDATE';
-      const productResult = await client.query(productQuery, [productId]);
+      // Проверяем наличие товара
+      const productResult = await db.query(
+        'SELECT * FROM products WHERE id = ? AND is_active = 1',
+        [productId]
+      );
       const product = productResult.rows[0];
       
       if (!product) {
@@ -45,74 +44,100 @@ class Product {
         throw new Error('Товар закончился');
       }
       
-      const userQuery = 'SELECT personal_points FROM users WHERE id = $1 FOR UPDATE';
-      const userResult = await client.query(userQuery, [userId]);
+      // Проверяем баллы пользователя
+      const userResult = await db.query('SELECT points FROM users WHERE id = ?', [userId]);
       const user = userResult.rows[0];
       
       if (!user) {
         throw new Error('Пользователь не найден');
       }
       
-      if (user.personal_points < product.price) {
+      if (user.points < product.price) {
         throw new Error('Недостаточно баллов');
       }
       
       // Списываем баллы
-      const updatePointsQuery = 'UPDATE users SET personal_points = personal_points - $1 WHERE id = $2';
-      await client.query(updatePointsQuery, [product.price, userId]);
+      await db.query(
+        'UPDATE users SET points = points - ? WHERE id = ?',
+        [product.price, userId]
+      );
       
       // Уменьшаем количество товара
-      const updateStockQuery = 'UPDATE products SET stock_quantity = stock_quantity - 1 WHERE id = $1';
-      await client.query(updateStockQuery, [productId]);
+      await db.query(
+        'UPDATE products SET stock_quantity = stock_quantity - 1 WHERE id = ?',
+        [productId]
+      );
       
-      // Создаем запись о покупке
-      const purchaseQuery = `
-        INSERT INTO purchases (user_id, product_id, price_paid, purchased_at)
-        VALUES ($1, $2, $3, NOW())
-        RETURNING *
-      `;
-      const purchaseResult = await client.query(purchaseQuery, [userId, productId, product.price]);
+      // Создаем заказ
+      const orderResult = await db.query(
+        'INSERT INTO orders (user_id, total_amount, status) VALUES (?, ?, ?)',
+        [userId, product.price, 'delivered']
+      );
       
-      await client.query('COMMIT');
-      return purchaseResult.rows[0];
+      // Создаем элемент заказа
+      await db.query(
+        'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
+        [orderResult.insertId, productId, 1, product.price]
+      );
+      
+      // Пересчитываем баллы пользователя
+      const { recalculateUserPoints } = require('../utils/pointsCalculator');
+      await recalculateUserPoints(userId);
+      
+      return { orderId: orderResult.insertId, product, price: product.price };
       
     } catch (error) {
-      await client.query('ROLLBACK');
       throw error;
-    } finally {
-      client.release();
     }
   }
 
   static async getUserPurchases(userId) {
     const query = `
-      SELECT p.title, p.description, p.image_url, pu.price_paid, pu.purchased_at
-      FROM purchases pu
-      JOIN products p ON pu.product_id = p.id
-      WHERE pu.user_id = $1
-      ORDER BY pu.purchased_at DESC
+      SELECT p.name, p.description, p.image_url, oi.price, o.created_at as purchased_at
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      JOIN products p ON oi.product_id = p.id
+      WHERE o.user_id = ? AND o.status != 'cancelled'
+      ORDER BY o.created_at DESC
     `;
     const result = await db.query(query, [userId]);
     return result.rows;
   }
 
   static async update(id, productData) {
-    const { title, description, price, image_url, stock_quantity } = productData;
+    const { name, description, price, image_url, stock_quantity, category, is_active } = productData;
     
     const query = `
       UPDATE products 
-      SET title = $1, description = $2, price = $3, image_url = $4, stock_quantity = $5
-      WHERE id = $6
-      RETURNING *
+      SET name = ?, description = ?, price = ?, image_url = ?, stock_quantity = ?, category = ?, is_active = ?
+      WHERE id = ?
     `;
     
-    const result = await db.query(query, [title, description, price, image_url, stock_quantity, id]);
-    return result.rows[0];
+    await db.query(query, [name, description, price, image_url, stock_quantity, category, is_active, id]);
+    // Получить обновленный продукт
+    const productResult = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+    return productResult.rows[0];
   }
 
   static async delete(id) {
-    const query = 'UPDATE products SET is_available = false WHERE id = $1';
+    const query = 'UPDATE products SET is_active = 0 WHERE id = ?';
     await db.query(query, [id]);
+  }
+
+  // Метод для получения покупок товара (для админки)
+  static async getProductPurchases(productId) {
+    const query = `
+      SELECT 
+        u.first_name, u.last_name, u.class_grade, u.class_letter,
+        oi.quantity, oi.price, o.created_at as purchase_date
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      JOIN users u ON o.user_id = u.id
+      WHERE oi.product_id = ? AND o.status != 'cancelled'
+      ORDER BY o.created_at DESC
+    `;
+    const result = await db.query(query, [productId]);
+    return result.rows;
   }
 }
 

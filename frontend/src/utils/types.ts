@@ -88,16 +88,6 @@ export interface Purchase {
   price_paid: number;
 }
 
-export interface Purchase {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  image_url?: string;
-  purchased_at: string;
-  price_paid: number;
-}
-
 export interface Statistics {
   users: {
     total: number;

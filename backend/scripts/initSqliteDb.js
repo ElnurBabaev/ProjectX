@@ -17,6 +17,9 @@ async function initDatabase() {
         class_letter TEXT NOT NULL CHECK (class_letter IN ('А', 'Б', 'В', 'Г')),
         role TEXT DEFAULT 'student' CHECK(role IN ('student', 'admin')),
         avatar_url TEXT,
+        total_earned_points INTEGER DEFAULT 0,
+        points INTEGER DEFAULT 0,
+        admin_points INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
@@ -159,22 +162,22 @@ async function addTestData() {
     const adminPassword = await bcrypt.hash('admin123', 12);
     
     await database.query(`
-      INSERT INTO users (login, password, first_name, last_name, class_grade, class_letter, role)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, ['admin', adminPassword, 'Администратор', 'Системы', 11, 'А', 'admin']);
+      INSERT INTO users (login, password, first_name, last_name, class_grade, class_letter, role, total_earned_points, points, admin_points)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, ['admin', adminPassword, 'Администратор', 'Системы', 11, 'А', 'admin', 0, 0, 0]);
 
     // Добавляем тестовых студентов
     const studentPassword = await bcrypt.hash('student123', 12);
     await database.query(`
-      INSERT INTO users (login, password, first_name, last_name, class_grade, class_letter)
+      INSERT INTO users (login, password, first_name, last_name, class_grade, class_letter, role, total_earned_points, points)
       VALUES 
-        (?, ?, ?, ?, ?, ?),
-        (?, ?, ?, ?, ?, ?),
-        (?, ?, ?, ?, ?, ?)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?),
+        (?, ?, ?, ?, ?, ?, ?, ?, ?),
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      'ivanov', studentPassword, 'Иван', 'Иванов', 10, 'А',
-      'petrov', studentPassword, 'Петр', 'Петров', 9, 'Б',
-      'sidorova', studentPassword, 'Анна', 'Сидорова', 11, 'В'
+      'ivanov', studentPassword, 'Иван', 'Иванов', 10, 'А', 'student', 0, 0,
+      'petrov', studentPassword, 'Петр', 'Петров', 9, 'Б', 'student', 0, 0,
+      'sidorova', studentPassword, 'Анна', 'Сидорова', 11, 'В', 'student', 0, 0
     ]);
 
     // Добавляем тестовое событие

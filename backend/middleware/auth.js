@@ -12,7 +12,7 @@ const auth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, JWT_SECRET);
     const result = await db.query(
-      'SELECT id, login, first_name, last_name, class_grade, class_letter, role FROM users WHERE id = ?',
+      'SELECT id, login, first_name, last_name, class_grade, class_letter, role, total_earned_points, points FROM users WHERE id = ?',
       [decoded.userId]
     );
     

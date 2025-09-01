@@ -51,8 +51,8 @@ router.post('/register', [
 
     // Создаем пользователя с новой структурой
     const result = await db.query(
-      'INSERT INTO users (login, password, first_name, last_name, class_grade, class_letter) VALUES (?, ?, ?, ?, ?, ?)',
-      [login, hashedPassword, firstName, lastName, classGrade, classLetter]
+      'INSERT INTO users (login, password, first_name, last_name, class_grade, class_letter, total_earned_points, points, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [login, hashedPassword, firstName, lastName, classGrade, classLetter, 0, 0, 'student']
     );
 
     console.log('✅ Пользователь создан с ID:', result.insertId);
