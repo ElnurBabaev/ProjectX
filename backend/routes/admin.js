@@ -75,10 +75,9 @@ router.get('/users', adminAuth, async (req, res) => {
       class_grade, 
       class_letter, 
       role, 
-      total_earned_points,
+      total_earned_points as personalPoints,
       points, 
       admin_points,
-      (COALESCE(total_earned_points, 0) + COALESCE(points, 0) + COALESCE(admin_points, 0)) as personalPoints,
       created_at 
     FROM users`;
     const params = [];
@@ -1264,17 +1263,17 @@ router.post('/users/:userId/update-points', [
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
 
-    // Получаем текущие admin_points
-    const currentPointsResult = await db.query('SELECT admin_points FROM users WHERE id = ?', [userId]);
-    const currentAdminPoints = currentPointsResult.rows[0].admin_points || 0;
+    // Получаем текущие total_earned_points
+    const currentPointsResult = await db.query('SELECT total_earned_points FROM users WHERE id = ?', [userId]);
+    const currentTotalPoints = currentPointsResult.rows[0].total_earned_points || 0;
 
-    // Обновляем admin_points (добавляем к существующим)
-    const newAdminPoints = currentAdminPoints + points;
+    // Обновляем total_earned_points (добавляем к существующим)
+    const newTotalPoints = currentTotalPoints + points;
     await db.query(`
       UPDATE users 
-      SET admin_points = ?
+      SET total_earned_points = ?, points = ?
       WHERE id = ?
-    `, [newAdminPoints, userId]);
+    `, [newTotalPoints, newTotalPoints, userId]);
 
     // Пересчитываем общие баллы
     await recalculateUserPoints(userId);

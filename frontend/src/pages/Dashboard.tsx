@@ -71,7 +71,7 @@ const Dashboard: React.FC = () => {
   const stats = [
     {
       title: 'Мои баллы',
-      value: user?.points || 0,
+      value: user?.total_earned_points || 0,
       icon: Star,
       color: 'from-yellow-400 to-orange-500',
       bgColor: 'bg-yellow-50',
