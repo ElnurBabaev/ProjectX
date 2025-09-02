@@ -32,7 +32,7 @@ interface Product {
 const ProductManagement: React.FC = () => {
   const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
   const API_ORIGIN = import.meta.env.PROD 
-    ? 'https://api.schoolactive.ru' 
+    ? 'http://schoolactive.ru' 
     : (API_BASE_URL.replace(/\/api\/?$/, '') || '');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
