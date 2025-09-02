@@ -1282,7 +1282,7 @@ router.post('/users/:userId/update-points', [
     const earnedAchievements = await AchievementChecker.checkAfterPointsEarned(userId);
 
     // Логируем действие
-    console.log(`Администратор ${points >= 0 ? 'добавил' : 'снял'} ${Math.abs(points)} баллов пользователю ${userId} (было: ${currentAdminPoints}, стало: ${newAdminPoints})`);
+    console.log(`Администратор ${points >= 0 ? 'добавил' : 'снял'} ${Math.abs(points)} баллов пользователю ${userId} (было: ${currentTotalPoints}, стало: ${newTotalPoints})`);
     if (earnedAchievements.length > 0) {
       console.log(`Пользователь ${userId} получил достижения:`, earnedAchievements.map(a => a.title));
     }
@@ -1290,7 +1290,7 @@ router.post('/users/:userId/update-points', [
     res.json({ 
       message: `Успешно ${points >= 0 ? 'добавлено' : 'списано'} ${Math.abs(points)} баллов`,
       user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name,
-      totalPoints: newAdminPoints,
+      totalPoints: newTotalPoints,
       earnedAchievements: earnedAchievements
     });
   } catch (error) {
