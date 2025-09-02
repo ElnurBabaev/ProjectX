@@ -162,7 +162,7 @@ export const adminApi = {
         lastName: u.last_name,
         classGrade: u.class_grade,
         classLetter: u.class_letter,
-        personalPoints: u.total_points || 0,
+        personalPoints: u.personalPoints || 0, // Исправлено: используем personalPoints из backend
         points: u.points || 0,
         admin_points: u.admin_points || 0,
         role: u.role,
