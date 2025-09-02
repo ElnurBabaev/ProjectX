@@ -25,7 +25,10 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   const getFullImageUrl = (url: string) => {
     if (!url) return '';
     if (url.startsWith('http')) return url; // уже полный URL
-    if (url.startsWith('/uploads/')) return `${API_ORIGIN}${url}`; // относительный путь от нашего сервера
+    if (url.startsWith('/uploads/')) {
+      // В продакшене используем относительный путь, в разработке - полный URL
+      return import.meta.env.PROD ? url : `${API_ORIGIN}${url}`;
+    }
     return url; // внешняя ссылка или что-то еще
   };
 

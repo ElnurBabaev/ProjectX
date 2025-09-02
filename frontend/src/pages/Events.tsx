@@ -19,9 +19,8 @@ const Events: React.FC = () => {
     if (!url) return '';
     if (url.startsWith('http')) return url; // уже полный URL
     if (url.startsWith('/uploads/')) {
-      const fullUrl = `${API_ORIGIN}${url}`;
-      console.log('🔧 Преобразование URL в Events:', url, '→', fullUrl);
-      return fullUrl;
+      // В продакшене используем относительный путь, в разработке - полный URL
+      return import.meta.env.PROD ? url : `${API_ORIGIN}${url}`;
     }
     return url; // внешняя ссылка или что-то еще
   };
