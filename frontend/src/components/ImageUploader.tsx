@@ -17,7 +17,9 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 }) => {
   // Базовые адреса API/статических файлов из окружения
   const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
-  const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+  const API_ORIGIN = import.meta.env.PROD 
+    ? 'https://api.schoolactive.ru' 
+    : (API_BASE_URL.replace(/\/api\/?$/, '') || '');
 
   // Функция для получения полного URL изображения
   const getFullImageUrl = (url: string) => {

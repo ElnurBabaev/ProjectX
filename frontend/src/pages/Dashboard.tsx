@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api, { productsApi } from '../utils/api';
 import { Order } from '../utils/types';
-import { useRankingStats, useTopStudents } from '../hooks/useRankings';
+import { useRankingStats, useClassRankings } from '../hooks/useRankings';
 
 interface Activity {
   type: 'achievement' | 'event';
@@ -24,7 +24,7 @@ const Dashboard: React.FC = () => {
 
   // Хуки для рейтинга
   const { data: rankingStats } = useRankingStats();
-  const { data: topStudents } = useTopStudents();
+  const { data: topClasses } = useClassRankings();
 
   useEffect(() => {
     loadData();
@@ -263,8 +263,8 @@ const Dashboard: React.FC = () => {
           </motion.div>
         )}
 
-        {/* Топ-3 учеников */}
-        {topStudents && topStudents.topStudents.length > 0 && (
+        {/* Топ-3 классов */}
+        {topClasses && topClasses.rankings.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -275,14 +275,14 @@ const Dashboard: React.FC = () => {
               🏆 Лидеры школы
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {topStudents.topStudents.slice(0, 3).map((student, index) => (
+              {topClasses.rankings.slice(0, 3).map((classData, index) => (
                 <motion.div
-                  key={student.id}
+                  key={`${classData.class_grade}${classData.class_letter}`}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.1 * index }}
                   className={`bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-white/20 ${
-                    student.id === user?.id ? 'ring-2 ring-blue-500' : ''
+                    classData.class_grade === user?.class_grade && classData.class_letter === user?.class_letter ? 'ring-2 ring-blue-500' : ''
                   }`}
                 >
                   <div className="text-center">
@@ -296,20 +296,20 @@ const Dashboard: React.FC = () => {
                       </span>
                     </div>
                     <h3 className="font-bold text-lg text-gray-900">
-                      {student.first_name} {student.last_name}
-                      {student.id === user?.id && <span className="text-blue-600 block text-sm">(Вы)</span>}
+                      {classData.class_grade}{classData.class_letter} класс
+                      {classData.class_grade === user?.class_grade && classData.class_letter === user?.class_letter && <span className="text-blue-600 block text-sm">(Ваш класс)</span>}
                     </h3>
                     <p className="text-gray-600 text-sm">
-                      {student.class_grade}{student.class_letter} класс
+                      {classData.students_count} учеников
                     </p>
                     <div className="mt-4 flex items-center justify-center gap-4">
                       <div className="text-center">
-                        <p className="font-bold text-lg text-yellow-600">{student.total_points}</p>
+                        <p className="font-bold text-lg text-yellow-600">{classData.total_points}</p>
                         <p className="text-gray-500 text-xs">очков</p>
                       </div>
                       <div className="text-center">
-                        <p className="font-bold text-lg text-blue-600">{student.events_participated}</p>
-                        <p className="text-gray-500 text-xs">мероприятий</p>
+                        <p className="font-bold text-lg text-blue-600">{classData.avg_points_per_student}</p>
+                        <p className="text-gray-500 text-xs">среднее</p>
                       </div>
                     </div>
                   </div>

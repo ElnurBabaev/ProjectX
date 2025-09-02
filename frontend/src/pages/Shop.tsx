@@ -8,7 +8,9 @@ import toast from 'react-hot-toast';
 
 const Shop: React.FC = () => {
   const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
-  const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+  const API_ORIGIN = import.meta.env.PROD 
+    ? 'https://api.schoolactive.ru' 
+    : (API_BASE_URL.replace(/\/api\/?$/, '') || '');
   const { user, refreshUser } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);

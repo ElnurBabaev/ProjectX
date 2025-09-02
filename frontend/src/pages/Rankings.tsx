@@ -15,7 +15,7 @@ import { getAvatarPath } from '../config/simple-images';
 
 const Rankings: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'students' | 'classes' | 'myClass'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'classes' | 'myClass'>(user?.isAdmin ? 'students' : 'classes');
   const queryClient = useQueryClient();
 
   const { data: studentRankings, isLoading: studentsLoading, refetch: refetchStudents } = useStudentRankings();
@@ -252,7 +252,7 @@ const Rankings: React.FC = () => {
         )}
 
         {/* Топ-10 учеников */}
-        {topStudents && (
+        {topStudents && user?.isAdmin && (
           <div className="mb-8">
             <div className="bg-white rounded-xl p-6 border shadow-sm">
               <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
@@ -276,19 +276,21 @@ const Rankings: React.FC = () => {
         <div className="bg-white rounded-xl border shadow-sm">
           <div className="border-b">
             <nav className="flex space-x-8 px-6">
-              <button
-                onClick={() => setActiveTab('students')}
-                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'students'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Рейтинг учеников
-                </div>
-              </button>
+              {user?.isAdmin && (
+                <button
+                  onClick={() => setActiveTab('students')}
+                  className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === 'students'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Рейтинг учеников
+                  </div>
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('classes')}
                 className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
@@ -319,7 +321,7 @@ const Rankings: React.FC = () => {
           </div>
 
           <div className="p-6">
-            {activeTab === 'students' && studentRankings && (
+            {activeTab === 'students' && user?.isAdmin && studentRankings && (
               <div>
                 <h3 className="text-xl font-bold text-gray-900 mb-6">
                   Общий рейтинг учеников ({studentRankings.rankings.length})
