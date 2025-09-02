@@ -1258,31 +1258,25 @@ router.post('/users/:userId/update-points', [
     const { points } = req.body;
 
     // Проверяем, что пользователь существует
-    const userResult = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
+    const userResult = await db.query('SELECT admin_points, first_name, last_name FROM users WHERE id = ?', [userId]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
 
-    // Получаем текущие total_earned_points
-    const currentPointsResult = await db.query('SELECT total_earned_points FROM users WHERE id = ?', [userId]);
-    const currentTotalPoints = currentPointsResult.rows[0].total_earned_points || 0;
+    const currentAdminPoints = userResult.rows[0].admin_points || 0;
+    const newAdminPoints = currentAdminPoints + points;
 
-    // Обновляем total_earned_points (добавляем к существующим)
-    const newTotalPoints = currentTotalPoints + points;
-    await db.query(`
-      UPDATE users 
-      SET total_earned_points = ?, points = ?
-      WHERE id = ?
-    `, [newTotalPoints, newTotalPoints, userId]);
+    // Обновляем только admin_points
+    await db.query('UPDATE users SET admin_points = ? WHERE id = ?', [newAdminPoints, userId]);
 
-    // Пересчитываем общие баллы
+    // Пересчитываем общие баллы (функция сама посчитает total_earned_points)
     await recalculateUserPoints(userId);
 
     // Проверяем достижения после изменения баллов
     const earnedAchievements = await AchievementChecker.checkAfterPointsEarned(userId);
 
     // Логируем действие
-    console.log(`Администратор ${points >= 0 ? 'добавил' : 'снял'} ${Math.abs(points)} баллов пользователю ${userId} (было: ${currentTotalPoints}, стало: ${newTotalPoints})`);
+    console.log(`Администратор ${points >= 0 ? 'добавил' : 'снял'} ${Math.abs(points)} баллов пользователю ${userId} (admin_points: ${currentAdminPoints} → ${newAdminPoints})`);
     if (earnedAchievements.length > 0) {
       console.log(`Пользователь ${userId} получил достижения:`, earnedAchievements.map(a => a.title));
     }
@@ -1290,7 +1284,7 @@ router.post('/users/:userId/update-points', [
     res.json({ 
       message: `Успешно ${points >= 0 ? 'добавлено' : 'списано'} ${Math.abs(points)} баллов`,
       user: userResult.rows[0].first_name + ' ' + userResult.rows[0].last_name,
-      totalPoints: newTotalPoints,
+      adminPoints: newAdminPoints,
       earnedAchievements: earnedAchievements
     });
   } catch (error) {
