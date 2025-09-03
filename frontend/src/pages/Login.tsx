@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, User, Lock, GraduationCap, BookOpen } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, GraduationCap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -211,23 +211,6 @@ const Login: React.FC = () => {
                 Зарегистрируйтесь
               </Link>
             </p>
-          </motion.div>
-
-          {/* Demo credentials */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-            className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100"
-          >
-            <div className="flex items-center mb-2">
-              <BookOpen className="w-4 h-4 text-blue-600 mr-2" />
-              <span className="text-sm font-medium text-blue-700">Демо-данные:</span>
-            </div>
-            <div className="text-xs text-blue-600 space-y-1">
-              <div>Админ: admin / admin123</div>
-              <div>Студенты: ivanov, petrov, sidorova / student123</div>
-            </div>
           </motion.div>
         </div>
       </motion.div>
