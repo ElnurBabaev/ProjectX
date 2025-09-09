@@ -151,7 +151,7 @@ const Dashboard: React.FC = () => {
                 </h1>
                 <p className="text-gray-600 mt-2">
                   {user?.class_grade}{user?.class_letter} класс • 
-                  Сегодня отличный день для новых достижений! 🎯
+                  Сегодня отличный день для новых достижений! <span className="emoji">🎯</span>
                 </p>
               </div>
               <motion.div
@@ -184,9 +184,9 @@ const Dashboard: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-4">
                 <div className={`p-3 rounded-xl bg-gradient-to-r ${stat.color}`}>
-                  <stat.icon className="w-6 h-6 text-white" />
+                  <stat.icon className="w-6 h-6 text-white stroke-current" style={{ fill: 'none' }} />
                 </div>
-                <TrendingUp className={`w-5 h-5 ${stat.textColor}`} />
+                <TrendingUp className={`w-5 h-5 ${stat.textColor} stroke-current`} style={{ fill: 'none' }} />
               </div>
               <div className={`text-3xl font-bold ${stat.textColor} mb-2`}>
                 {loading && stat.title === 'Покупок' ? (
@@ -217,7 +217,7 @@ const Dashboard: React.FC = () => {
                   to="/rankings"
                   className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
                 >
-                  <BarChart3 className="w-4 h-4" />
+                  <BarChart3 className="w-4 h-4 stroke-current" style={{ fill: 'none' }} />
                   Посмотреть весь рейтинг
                 </Link>
               </div>
@@ -225,7 +225,7 @@ const Dashboard: React.FC = () => {
                 <div className="bg-white/10 rounded-xl p-4">
                   <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-2 rounded-lg">
-                      <Target className="w-6 h-6" />
+                      <Target className="w-6 h-6 stroke-current" style={{ fill: 'none' }} />
                     </div>
                     <div>
                       <p className="text-white/80 text-sm">Позиция в школе</p>
@@ -237,7 +237,7 @@ const Dashboard: React.FC = () => {
                 <div className="bg-white/10 rounded-xl p-4">
                   <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-2 rounded-lg">
-                      <Users className="w-6 h-6" />
+                      <Users className="w-6 h-6 stroke-current" style={{ fill: 'none' }} />
                     </div>
                     <div>
                       <p className="text-white/80 text-sm">Позиция класса</p>
@@ -249,7 +249,7 @@ const Dashboard: React.FC = () => {
                 <div className="bg-white/10 rounded-xl p-4">
                   <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-2 rounded-lg">
-                      <Star className="w-6 h-6" />
+                      <Star className="w-6 h-6 stroke-current" style={{ fill: 'none' }} />
                     </div>
                     <div>
                       <p className="text-white/80 text-sm">Общие очки</p>
@@ -272,7 +272,7 @@ const Dashboard: React.FC = () => {
             className="mb-8"
           >
             <h2 className="text-2xl font-bold text-gray-800 mb-6">
-              🏆 Лидеры школы
+              <span className="emoji">🏆</span> Лидеры школы
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {topClasses.rankings.slice(0, 3).map((classData, index) => (
@@ -341,7 +341,7 @@ const Dashboard: React.FC = () => {
                 className="block bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300"
               >
                 <div className={`inline-flex p-3 rounded-xl bg-gradient-to-r ${action.color} mb-4`}>
-                  <action.icon className="w-6 h-6 text-white" />
+                  <action.icon className="w-6 h-6 text-white stroke-current" style={{ fill: 'none' }} />
                 </div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">
                   {action.title}
@@ -380,9 +380,9 @@ const Dashboard: React.FC = () => {
                         : 'from-blue-400 to-purple-500'
                     } rounded-full flex items-center justify-center mr-4`}>
                       {activity.type === 'achievement' ? (
-                        <Trophy className="w-6 h-6 text-white" />
+                        <Trophy className="w-6 h-6 text-white stroke-current" style={{ fill: 'none' }} />
                       ) : (
-                        <Calendar className="w-6 h-6 text-white" />
+                        <Calendar className="w-6 h-6 text-white stroke-current" style={{ fill: 'none' }} />
                       )}
                     </div>
                     <div className="flex-1">
@@ -403,7 +403,7 @@ const Dashboard: React.FC = () => {
               </div>
             ) : (
               <div className="text-center py-8">
-                <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4 stroke-current" style={{ fill: 'none' }} />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Пока нет активности</h3>
                 <p className="text-gray-600">
                   Участвуйте в мероприятиях и зарабатывайте достижения, чтобы увидеть свою активность здесь!

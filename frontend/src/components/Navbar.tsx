@@ -71,7 +71,9 @@ const Navbar: React.FC = () => {
                     : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
                 }`}
               >
-                <item.icon className="w-4 h-4 mr-2" />
+                <item.icon className={`w-4 h-4 mr-2 stroke-current ${
+                  isActive(item.href) ? 'text-blue-600' : 'text-gray-600'
+                }`} />
                 {item.name}
               </Link>
             ))}
@@ -84,7 +86,7 @@ const Navbar: React.FC = () => {
                 to="/admin"
                 className="flex items-center px-3 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-all duration-200"
               >
-                <Shield className="w-4 h-4 mr-2" />
+                <Shield className="w-4 h-4 mr-2 stroke-current text-purple-600" />
                 Админ
               </Link>
             )}
@@ -113,14 +115,16 @@ const Navbar: React.FC = () => {
                   : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
               }`}
             >
-              <User className="w-5 h-5" />
+              <User className={`w-5 h-5 stroke-current ${
+                isActive('/profile') ? 'text-blue-600' : 'text-gray-600'
+              }`} />
             </Link>
 
             <button
               onClick={handleLogout}
               className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-5 h-5 stroke-current text-gray-600 hover:text-red-600" />
             </button>
           </div>
 
@@ -131,9 +135,9 @@ const Navbar: React.FC = () => {
               className="p-2 rounded-lg text-gray-600 hover:text-gray-800 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               {isOpen ? (
-                <X className="w-6 h-6" />
+                <X className="w-6 h-6 stroke-current text-gray-600" />
               ) : (
-                <Menu className="w-6 h-6" />
+                <Menu className="w-6 h-6 stroke-current text-gray-600" />
               )}
             </button>
           </div>
@@ -159,7 +163,9 @@ const Navbar: React.FC = () => {
                   : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
               }`}
             >
-              <item.icon className="w-5 h-5 mr-3" />
+              <item.icon className={`w-5 h-5 mr-3 stroke-current ${
+                isActive(item.href) ? 'text-blue-600' : 'text-gray-600'
+              }`} />
               {item.name}
             </Link>
           ))}
@@ -170,7 +176,7 @@ const Navbar: React.FC = () => {
               onClick={() => setIsOpen(false)}
               className="flex items-center px-3 py-2 text-base font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-all duration-200"
             >
-              <Shield className="w-5 h-5 mr-3" />
+              <Shield className="w-5 h-5 mr-3 stroke-current text-purple-600" />
               Админ панель
             </Link>
           )}
@@ -186,7 +192,9 @@ const Navbar: React.FC = () => {
                 : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
             }`}
           >
-            <User className="w-5 h-5 mr-3" />
+            <User className={`w-5 h-5 mr-3 stroke-current ${
+              isActive('/profile') ? 'text-blue-600' : 'text-gray-600'
+            }`} />
             Профиль
           </Link>
           
@@ -197,7 +205,7 @@ const Navbar: React.FC = () => {
             }}
             className="flex items-center w-full px-3 py-2 text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
           >
-            <LogOut className="w-5 h-5 mr-3" />
+            <LogOut className="w-5 h-5 mr-3 stroke-current text-red-600" />
             Выйти
           </button>
 

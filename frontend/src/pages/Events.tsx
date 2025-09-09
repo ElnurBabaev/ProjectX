@@ -91,8 +91,9 @@ const Events: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold gradient-text mb-4">
-            📅 Школьные мероприятия
+          <h1 className="text-4xl font-bold mb-4 flex items-center gap-3">
+            <span className="emoji text-4xl">📅</span>
+            <span className="gradient-text">Школьные мероприятия</span>
           </h1>
           <p className="text-gray-600 text-lg">
             Участвуй в мероприятиях и зарабатывай баллы за активность!
@@ -240,7 +241,7 @@ const Events: React.FC = () => {
             animate={{ opacity: 1 }}
             className="text-center py-12"
           >
-            <div className="text-6xl mb-4">📅</div>
+            <div className="text-6xl mb-4 emoji">📅</div>
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
               Мероприятий не найдено
             </h3>

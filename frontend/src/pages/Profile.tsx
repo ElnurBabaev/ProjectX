@@ -424,7 +424,7 @@ const Profile: React.FC = () => {
                           }}
                         />
                       ) : (
-                        <div className="text-2xl">
+                        <div className="text-2xl emoji">
                           {achievement.icon || '🏆'}
                         </div>
                       )}

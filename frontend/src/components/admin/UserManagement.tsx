@@ -642,9 +642,9 @@ const UserManagement: React.FC = () => {
                         <h4 className="font-medium text-gray-900">{event.title}</h4>
                         <p className="text-sm text-gray-600 mt-1">{event.description}</p>
                         <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                          <span>📅 {new Date(event.start_date).toLocaleDateString('ru-RU')}</span>
-                          <span>📍 {event.location}</span>
-                          <span>🎯 {event.points} баллов</span>
+                          <span><span className="emoji">📅</span> {new Date(event.start_date).toLocaleDateString('ru-RU')}</span>
+                          <span><span className="emoji">📍</span> {event.location}</span>
+                          <span><span className="emoji">🎯</span> {event.points} баллов</span>
                         </div>
                       </div>
                       <div className="ml-4">

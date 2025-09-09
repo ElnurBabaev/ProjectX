@@ -71,8 +71,9 @@ const Achievements: React.FC = () => {
           className="mb-8"
         >
           <div className="text-center">
-            <h1 className="text-4xl font-bold gradient-text mb-4">
-              🏆 Достижения
+            <h1 className="text-4xl font-bold mb-4 flex items-center justify-center gap-3">
+              <span className="emoji text-4xl">🏆</span>
+              <span className="gradient-text">Достижения</span>
             </h1>
             <p className="text-gray-600 text-lg">
               Получайте награды за активное участие в школьной жизни!
@@ -174,7 +175,7 @@ const Achievements: React.FC = () => {
                         }}
                       />
                     ) : (
-                      <div className="text-6xl">
+                      <div className="text-6xl emoji">
                         {achievement.icon || '🏆'}
                       </div>
                     )}
@@ -243,7 +244,7 @@ const Achievements: React.FC = () => {
             animate={{ opacity: 1 }}
             className="text-center py-12"
           >
-            <div className="text-6xl mb-4">🏆</div>
+            <div className="text-6xl mb-4 emoji">🏆</div>
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
               {activeTab === 'earned' ? 'У вас пока нет достижений' : 'Достижений не найдено'}
             </h3>

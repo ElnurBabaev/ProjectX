@@ -132,7 +132,7 @@ const Shop: React.FC = () => {
               {/* Balance */}
               <div className="text-right">
                 <div className="flex items-center justify-end mb-2">
-                  <Star className="w-6 h-6 text-yellow-500 mr-2" />
+                  <Star className="w-6 h-6 text-yellow-500 mr-2 stroke-current" style={{ fill: 'currentColor' }} />
                   <span className="text-3xl font-bold text-yellow-600">
                     {Math.floor(user?.points || 0)}
                   </span>
@@ -159,7 +159,7 @@ const Shop: React.FC = () => {
                   : 'bg-white text-gray-600 hover:bg-gray-50 shadow-sm hover:shadow-md'
               }`}
             >
-              <ShoppingBag className="w-4 h-4 mr-2" />
+              <ShoppingBag className="w-4 h-4 mr-2 stroke-current" style={{ fill: 'none' }} />
               Товары
             </button>
             <button
@@ -170,7 +170,7 @@ const Shop: React.FC = () => {
                   : 'bg-white text-gray-600 hover:bg-gray-50 shadow-sm hover:shadow-md'
               }`}
             >
-              <History className="w-4 h-4 mr-2" />
+              <History className="w-4 h-4 mr-2 stroke-current" style={{ fill: 'none' }} />
               История покупок ({orders.length})
             </button>
           </div>
@@ -219,7 +219,7 @@ const Shop: React.FC = () => {
                       }}
                     />
                   ) : (
-                    <Package className="w-16 h-16 text-gray-400" />
+                    <Package className="w-16 h-16 text-gray-400 stroke-current" style={{ fill: 'none' }} />
                   )}
                 </div>
 
@@ -253,7 +253,7 @@ const Shop: React.FC = () => {
                 <div className="mt-auto">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center">
-                      <Star className="w-5 h-5 text-yellow-500 mr-1" />
+                      <Star className="w-5 h-5 text-yellow-500 mr-1 stroke-current" style={{ fill: 'currentColor' }} />
                       <span className="text-2xl font-bold text-yellow-600">
                         {Math.floor(product.price)}
                       </span>
@@ -275,7 +275,7 @@ const Shop: React.FC = () => {
                     {purchaseLoading === product.id ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                     ) : (
-                      <CreditCard className="w-4 h-4 mr-2" />
+                      <CreditCard className="w-4 h-4 mr-2 stroke-current" style={{ fill: 'none' }} />
                     )}
                     
                     {purchaseLoading === product.id
@@ -330,7 +330,7 @@ const Shop: React.FC = () => {
                   
                   <div className="text-right">
                     <div className="flex items-center text-yellow-600">
-                      <Star className="w-4 h-4 mr-1" />
+                      <Star className="w-4 h-4 mr-1 stroke-current" style={{ fill: 'currentColor' }} />
                       <span className="text-lg font-semibold">
                         {Math.floor(order.total_amount)}
                       </span>
@@ -364,7 +364,7 @@ const Shop: React.FC = () => {
                             }}
                           />
                         ) : (
-                          <Package className="w-6 h-6 text-gray-500" />
+                          <Package className="w-6 h-6 text-gray-500 stroke-current" style={{ fill: 'none' }} />
                         )}
                       </div>
                       

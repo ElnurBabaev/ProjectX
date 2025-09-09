@@ -166,7 +166,9 @@ const Rankings: React.FC = () => {
         {/* Заголовок - адаптивный */}
         <div className="text-center mb-6 lg:mb-8">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mb-4">
-            <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900">🏆 Рейтинг школы</h1>
+            <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900">
+              <span className="emoji">🏆</span> Рейтинг школы
+            </h1>
             <button
               onClick={handleRefreshData}
               className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors flex items-center gap-2 text-sm"

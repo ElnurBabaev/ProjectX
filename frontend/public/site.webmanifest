@@ -1,0 +1,17 @@
+{
+  "name": "Школьные мероприятия",
+  "short_name": "ШколаЭвенты",
+  "description": "Система управления школьными мероприятиями",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#FFD93D",
+  "background_color": "#FFFFFF",
+  "lang": "ru"
+}
