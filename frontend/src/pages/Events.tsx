@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, Users, Plus } from 'lucide-react';
+import { Calendar, Clock, Users, Plus, Trophy } from 'lucide-react';
 import { eventsApi } from '../utils/api';
 import { Event } from '../utils/types';
 import toast from 'react-hot-toast';
@@ -197,6 +197,15 @@ const Events: React.FC = () => {
                     {event.current_participants || 0} / {event.max_participants || 0} участников
                   </span>
                 </div>
+
+                {(event.points !== undefined && event.points !== null) && (
+                  <div className="flex items-center text-green-600">
+                    <Trophy className="w-4 h-4 mr-2" />
+                    <span className="text-sm font-medium">
+                      +{event.points} баллов за участие
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Progress Bar */}

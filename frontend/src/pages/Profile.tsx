@@ -374,6 +374,14 @@ const Profile: React.FC = () => {
                     </div>
                     
                     <div className="text-right">
+                      <div className="flex items-center space-x-2 mb-1">
+                        {event.points && event.registration_status === 'attended' && (
+                          <div className="flex items-center text-green-600 text-sm">
+                            <Trophy className="w-4 h-4 mr-1" />
+                            <span className="font-medium">+{event.points}</span>
+                          </div>
+                        )}
+                      </div>
                       <div className="text-gray-500 text-sm">
                         {event.registration_status === 'registered' ? 'Зарегистрирован' : 
                          event.registration_status === 'attended' ? 'Присутствовал' : 

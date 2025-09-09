@@ -27,6 +27,7 @@ export interface Event {
   max_participants?: number;
   current_participants: number;
   image_url?: string;
+  points?: number;
   status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
   created_at: string;
   registration_status?: 'registered' | 'attended' | 'missed' | 'cancelled';

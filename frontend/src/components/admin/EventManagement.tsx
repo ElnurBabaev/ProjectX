@@ -9,7 +9,8 @@ import {
   Clock,
   MapPin,
   X,
-  Download
+  Download,
+  Trophy
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ImageUploader from '../ImageUploader';
@@ -60,7 +61,8 @@ const EventManagement: React.FC = () => {
     endDate: '',
     location: '',
     maxParticipants: 50,
-    imageUrl: ''
+    imageUrl: '',
+    points: 10
   });
 
   // Функция для получения полного URL изображения
@@ -135,7 +137,7 @@ const EventManagement: React.FC = () => {
           location: newEvent.location,
           max_participants: newEvent.maxParticipants,
           image_url: newEvent.imageUrl || null,
-          points: 10
+          points: newEvent.points
         })
       });
 
@@ -153,7 +155,8 @@ const EventManagement: React.FC = () => {
         endDate: '',
         location: '',
         maxParticipants: 50,
-        imageUrl: ''
+        imageUrl: '',
+        points: 10
       });
       toast.success('Событие создано успешно');
     } catch (error: any) {
@@ -454,6 +457,12 @@ const EventManagement: React.FC = () => {
                   <Users className="w-4 h-4" />
                   <span>{event.current_participants || 0} / {event.max_participants}</span>
                 </div>
+                {event.points && (
+                  <div className="flex items-center space-x-2 text-green-600">
+                    <Trophy className="w-4 h-4" />
+                    <span className="font-medium">+{event.points} баллов</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex space-x-2">
@@ -558,6 +567,14 @@ const EventManagement: React.FC = () => {
                 onChange={(e) => setNewEvent({ ...newEvent, maxParticipants: Number(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               />
+              <input
+                type="number"
+                placeholder="Количество баллов за участие"
+                value={newEvent.points}
+                onChange={(e) => setNewEvent({ ...newEvent, points: Number(e.target.value) })}
+                min="0"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              />
               <ImageUploader
                 currentImage={newEvent.imageUrl}
                 onImageChange={(imageUrl) => setNewEvent({ ...newEvent, imageUrl })}
@@ -634,6 +651,14 @@ const EventManagement: React.FC = () => {
                 placeholder="Максимум участников"
                 value={selectedEvent.max_participants}
                 onChange={(e) => setSelectedEvent({ ...selectedEvent, max_participants: Number(e.target.value) })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              />
+              <input
+                type="number"
+                placeholder="Количество баллов за участие"
+                value={selectedEvent.points || 10}
+                onChange={(e) => setSelectedEvent({ ...selectedEvent, points: Number(e.target.value) })}
+                min="0"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               />
               <ImageUploader

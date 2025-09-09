@@ -56,6 +56,7 @@ export const eventsApi = {
       start_date: e.start_date,
       end_date: e.end_date,
       image_url: e.image_url,
+      points: e.points,
       status: e.status,
       created_at: e.created_at,
     }))
@@ -71,6 +72,7 @@ export const eventsApi = {
       start_date: e.start_date,
       end_date: e.end_date,
       image_url: e.image_url,
+      points: e.points,
       status: e.status,
       registration_status: e.registration_status,
       registered_at: e.registered_at,
