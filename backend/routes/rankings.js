@@ -17,7 +17,7 @@ router.get('/students', auth, async (req, res) => {
         u.avatar_url,
         CAST(u.total_earned_points AS INTEGER) as total_points,
         COUNT(CASE WHEN er.status = 'attended' THEN 1 END) as events_participated,
-        RANK() OVER (ORDER BY u.total_earned_points DESC) as rank_position
+        DENSE_RANK() OVER (ORDER BY u.total_earned_points DESC) as rank_position
       FROM users u
       LEFT JOIN event_registrations er ON u.id = er.user_id
       WHERE u.role = 'student'
@@ -53,7 +53,7 @@ router.get('/classes', auth, async (req, res) => {
         CAST(COALESCE(SUM(u.total_earned_points), 0) AS INTEGER) as total_points,
         COUNT(DISTINCT u.id) as students_count,
         ROUND(COALESCE(SUM(u.total_earned_points), 0) / COUNT(DISTINCT u.id), 2) as avg_points_per_student,
-        RANK() OVER (ORDER BY COALESCE(SUM(u.total_earned_points), 0) DESC) as rank_position
+        DENSE_RANK() OVER (ORDER BY COALESCE(SUM(u.total_earned_points), 0) DESC) as rank_position
       FROM users u
       WHERE u.role = 'student'
       GROUP BY u.class_grade, u.class_letter
@@ -127,7 +127,7 @@ router.get('/students/:grade/:letter', auth, async (req, res) => {
         u.avatar_url,
         CAST(u.total_earned_points AS INTEGER) as total_points,
         COUNT(CASE WHEN er.status = 'attended' THEN 1 END) as events_participated,
-        RANK() OVER (ORDER BY u.total_earned_points DESC) as rank_position
+        DENSE_RANK() OVER (ORDER BY u.total_earned_points DESC) as rank_position
       FROM users u
       LEFT JOIN event_registrations er ON u.id = er.user_id
       WHERE u.role = 'student' AND u.class_grade = ? AND u.class_letter = ?
@@ -177,7 +177,7 @@ router.get('/stats', auth, async (req, res) => {
       SELECT rank_position FROM (
         SELECT 
           u.id,
-          RANK() OVER (ORDER BY u.total_earned_points DESC) as rank_position
+          DENSE_RANK() OVER (ORDER BY u.total_earned_points DESC) as rank_position
         FROM users u
         WHERE u.role = 'student'
       ) ranked
@@ -190,7 +190,7 @@ router.get('/stats', auth, async (req, res) => {
         SELECT 
           u.class_grade,
           u.class_letter,
-          RANK() OVER (ORDER BY COALESCE(SUM(u.total_earned_points), 0) DESC) as rank_position
+          DENSE_RANK() OVER (ORDER BY COALESCE(SUM(u.total_earned_points), 0) DESC) as rank_position
         FROM users u
         WHERE u.role = 'student'
         GROUP BY u.class_grade, u.class_letter
