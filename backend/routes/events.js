@@ -201,8 +201,8 @@ router.put('/:id', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    console.log('PUT /events/:id called with id:', req.params.id);
-    console.log('Request body:', req.body);
+  console.log('PUT /events/:id called with id:', req.params.id);
+  console.log('Request body:', req.body);
 
     const { title, description, start_date, end_date, location, max_participants, image_url, status, points, category } = req.body;
     
@@ -228,6 +228,14 @@ router.put('/:id', [
     res.json({ message: 'Мероприятие обновлено' });
   } catch (error) {
     console.error('Ошибка обновления мероприятия:', error);
+    // Дополнительный лог для продакшена: покажем часть тела запроса (без секретов)
+    try {
+      const safeBody = { ...req.body };
+      if (safeBody.image_url) safeBody.image_url = '[REDACTED]';
+      console.error('Request body at error:', JSON.stringify(safeBody));
+    } catch (e) {
+      console.error('Ошибка при логировании тела запроса:', e.message);
+    }
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });

@@ -35,6 +35,11 @@ git pull origin main
 log "⚙️ Обновление backend..."
 cd backend
 npm install --production
+# Обеспечиваем, что колонка category присутствует в БД — безопасно запускаем миграцию
+if [ -f "scripts/addCategoryColumn.js" ]; then
+    warn "🔁 Выполняю миграцию addCategoryColumn.js (если необходимо)"
+    node scripts/addCategoryColumn.js || warn "⚠️ Миграция addCategoryColumn.js завершилась с ошибкой — продолжим, проверьте логи"
+fi
 pm2 restart projectx-api || pm2 start server.js --name projectx-api
 cd ..
 

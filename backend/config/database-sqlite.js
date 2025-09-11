@@ -20,7 +20,35 @@ class Database {
           console.log('Connected to SQLite database');
           // Включаем поддержку внешних ключей
           this.db.run('PRAGMA foreign_keys = ON');
-          resolve();
+
+          // Авто-проверка: если в таблице events нет колонки category, добавим её.
+          try {
+            this.db.all("PRAGMA table_info('events')", (err2, rows) => {
+              if (err2) {
+                console.error('Ошибка при проверке схемы events:', err2.message);
+                resolve();
+                return;
+              }
+
+              const hasCategory = Array.isArray(rows) && rows.some(r => r && r.name === 'category');
+              if (!hasCategory) {
+                console.log('Колонка category не найдена в events — пытаюсь добавить...');
+                this.db.run("ALTER TABLE events ADD COLUMN category TEXT", (alterErr) => {
+                  if (alterErr) {
+                    console.error('Не удалось добавить колонку category:', alterErr.message);
+                  } else {
+                    console.log('Колонка category успешно добавлена в таблицу events');
+                  }
+                  resolve();
+                });
+              } else {
+                resolve();
+              }
+            });
+          } catch (ex) {
+            console.error('Ошибка при авто-проверке schema events:', ex.message);
+            resolve();
+          }
         }
       });
     });
