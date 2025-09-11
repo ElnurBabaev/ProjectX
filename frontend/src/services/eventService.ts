@@ -2,6 +2,7 @@ export interface Event {
   id: number;
   title: string;
   description: string;
+  category?: string;
   start_date: string;
   end_date?: string;
   location: string;
@@ -29,6 +30,7 @@ export interface CreateEventData {
   end_date?: string;
   location: string;
   max_participants: number;
+  category?: string;
   image_url?: string;
   points: number;
 }

@@ -131,6 +131,19 @@ const EditEventModal: React.FC<EditEventModalProps> = ({
             min="0"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:opacity-50"
           />
+
+          <select
+            value={(formData.category as string) || ''}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            disabled={isSubmitting}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+          >
+            <option value="">Категория (опционально)</option>
+            <option value="олимпиада">Олимпиада</option>
+            <option value="спорт">Спорт</option>
+            <option value="концерт">Концерт</option>
+            <option value="акция">Акция</option>
+          </select>
           
           <ImageUploader
             currentImage={formData.image_url || ''}

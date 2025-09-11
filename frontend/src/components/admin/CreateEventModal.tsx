@@ -13,7 +13,8 @@ interface CreateEventModalProps {
     location: string;
     maxParticipants: number;
     imageUrl: string;
-    points: number;
+  points: number;
+  category?: string;
   }) => Promise<boolean>;
 }
 
@@ -30,7 +31,8 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
     location: '',
     maxParticipants: 50,
     imageUrl: '',
-    points: 10
+  points: 10,
+  category: ''
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,7 +55,8 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
         location: '',
         maxParticipants: 50,
         imageUrl: '',
-        points: 10
+  points: 10,
+  category: ''
       });
       onClose();
     }
@@ -145,6 +148,19 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
             min="0"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:opacity-50"
           />
+
+          <select
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            disabled={isSubmitting}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+          >
+            <option value="">Категория (опционально)</option>
+            <option value="олимпиада">Олимпиада</option>
+            <option value="спорт">Спорт</option>
+            <option value="концерт">Концерт</option>
+            <option value="акция">Акция</option>
+          </select>
           
           <ImageUploader
             currentImage={formData.imageUrl}

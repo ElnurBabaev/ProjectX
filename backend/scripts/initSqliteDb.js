@@ -32,6 +32,7 @@ async function initDatabase() {
         title TEXT NOT NULL,
         description TEXT,
         start_date DATETIME NOT NULL,
+  category TEXT,
         end_date DATETIME,
         location TEXT,
         max_participants INTEGER,
@@ -44,6 +45,18 @@ async function initDatabase() {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Если база уже существовала без колонки category, добавим её
+    try {
+      const info = await database.query("PRAGMA table_info('events')");
+      const hasCategory = info.rows.some(r => r.name === 'category');
+      if (!hasCategory) {
+        console.log('Добавляю колонку category в таблицу events...');
+        await database.query('ALTER TABLE events ADD COLUMN category TEXT');
+      }
+    } catch (err) {
+      console.warn('Не удалось проверить/добавить колонку category:', err.message || err);
+    }
 
     // Создание таблицы регистраций на события
     await database.query(`

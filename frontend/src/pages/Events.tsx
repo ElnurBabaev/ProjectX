@@ -66,10 +66,30 @@ const Events: React.FC = () => {
     { value: 'спорт', label: 'Спорт', color: 'bg-green-100 text-green-700' },
     { value: 'концерт', label: 'Концерты', color: 'bg-purple-100 text-purple-700' },
     { value: 'акция', label: 'Акции', color: 'bg-orange-100 text-orange-700' },
+    { value: 'past', label: 'Прошедшие', color: 'bg-red-100 text-red-700' },
   ];
 
-  // Убираем фильтрацию по type, так как этого свойства нет в типе Event
-  const filteredEvents = events; // Показываем все события
+  // Определяем прошедшее мероприятие
+  const isEventPast = (e: Event) => {
+    try {
+      const compareDate = e.end_date || e.start_date;
+      if (!compareDate) return false;
+      return new Date(compareDate) < new Date();
+    } catch {
+      return false;
+    }
+  };
+
+  // Разделяем события на прошедшие и будущие/текущие
+  const pastEvents = events.filter(isEventPast);
+  const upcomingEvents = events.filter((e) => !isEventPast(e));
+
+  // Фильтрация вкладок: по требованию — "Прошедшие" в отдельной вкладке,
+  // основная вкладка показывает только будущие/текущие мероприятия
+  let filteredEvents: Event[] = [];
+  if (filter === 'past') filteredEvents = pastEvents;
+  else if (filter === 'all') filteredEvents = upcomingEvents;
+  else filteredEvents = upcomingEvents.filter(e => (e as any).category === filter);
 
   if (loading) {
     return (
@@ -135,9 +155,23 @@ const Events: React.FC = () => {
               className="card hover:shadow-2xl"
             >
               {/* Event Title */}
-              <h3 className="text-xl font-bold text-gray-800 mb-3 line-clamp-2">
-                {event.title}
-              </h3>
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="text-xl font-bold text-gray-800 line-clamp-2">
+                  {event.title}
+                </h3>
+                <div className="flex items-center gap-2">
+                  {event.category && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                      {event.category}
+                    </span>
+                  )}
+                  {isEventPast(event) && (
+                  <span className="ml-3 inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                    Прошло
+                  </span>
+                  )}
+                </div>
+              </div>
 
               {/* Event Image */}
               {event.image_url && (
@@ -226,17 +260,19 @@ const Events: React.FC = () => {
               {/* Register Button */}
               <button
                 onClick={() => registerForEvent(event.id)}
-                disabled={(event.current_participants || 0) >= (event.max_participants || 0)}
+                disabled={isEventPast(event) || (event.current_participants || 0) >= (event.max_participants || 0)}
                 className={`w-full btn ${
-                  (event.current_participants || 0) >= (event.max_participants || 0)
+                  isEventPast(event) || (event.current_participants || 0) >= (event.max_participants || 0)
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'btn-primary'
                 } flex items-center justify-center`}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                {(event.current_participants || 0) >= (event.max_participants || 0)
-                  ? 'Мест нет'
-                  : 'Зарегистрироваться'
+                {isEventPast(event)
+                  ? 'Прошло'
+                  : (event.current_participants || 0) >= (event.max_participants || 0)
+                    ? 'Мест нет'
+                    : 'Зарегистрироваться'
                 }
               </button>
             </motion.div>

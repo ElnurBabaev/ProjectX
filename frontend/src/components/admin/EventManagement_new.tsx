@@ -42,7 +42,8 @@ const EventManagement: React.FC = () => {
     location: string;
     maxParticipants: number;
     imageUrl: string;
-    points: number;
+  points: number;
+  category?: string;
   }) => {
     const success = await createEvent(eventData);
     if (success) {

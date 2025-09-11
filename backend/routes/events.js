@@ -158,14 +158,14 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, start_date, end_date, location, max_participants, image_url, points } = req.body;
+    const { title, description, start_date, end_date, location, max_participants, image_url, points, category } = req.body;
     
     const result = await db.query(`
-      INSERT INTO events (title, description, start_date, end_date, location, max_participants, image_url, points, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [title, description, start_date, end_date, location, max_participants || null, image_url || null, points || 10, req.user.id]);
+      INSERT INTO events (title, description, start_date, category, end_date, location, max_participants, image_url, points, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [title, description, start_date, category || null, end_date, location, max_participants || null, image_url || null, points || 10, req.user.id]);
 
-  res.status(201).json({ 
+    res.status(201).json({ 
       message: 'Мероприятие создано', 
       event: { 
         id: result.insertId, 
@@ -175,7 +175,8 @@ router.post('/', [
         end_date, 
         location, 
         max_participants, 
-    image_url 
+        image_url,
+        category: category || null
       } 
     });
   } catch (error) {
@@ -203,13 +204,13 @@ router.put('/:id', [
     console.log('PUT /events/:id called with id:', req.params.id);
     console.log('Request body:', req.body);
 
-    const { title, description, start_date, end_date, location, max_participants, image_url, status, points } = req.body;
+    const { title, description, start_date, end_date, location, max_participants, image_url, status, points, category } = req.body;
     
     const result = await db.query(`
       UPDATE events 
-      SET title = ?, description = ?, start_date = ?, end_date = ?, location = ?, max_participants = ?, image_url = ?, status = ?, points = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, description = ?, start_date = ?, category = ?, end_date = ?, location = ?, max_participants = ?, image_url = ?, status = ?, points = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `, [title, description, start_date, end_date, location, max_participants || null, image_url || null, status || 'upcoming', points || 10, req.params.id]);
+    `, [title, description, start_date, category || null, end_date, location, max_participants || null, image_url || null, status || 'upcoming', points || 10, req.params.id]);
 
     console.log('Update result:', result);
 

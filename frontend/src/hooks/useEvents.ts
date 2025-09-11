@@ -32,8 +32,9 @@ export const useEvents = () => {
     endDate: string;
     location: string;
     maxParticipants: number;
-    imageUrl: string;
+  imageUrl: string;
     points: number;
+  category?: string;
   }) => {
     try {
       await eventService.createEvent({
@@ -43,7 +44,8 @@ export const useEvents = () => {
         end_date: eventData.endDate || undefined,
         location: eventData.location,
         max_participants: eventData.maxParticipants,
-        image_url: eventData.imageUrl || undefined,
+    image_url: eventData.imageUrl || undefined,
+    category: eventData.category || undefined,
         points: eventData.points
       });
 
@@ -65,7 +67,8 @@ export const useEvents = () => {
         end_date: event.end_date || undefined,
         location: event.location,
         max_participants: event.max_participants,
-        image_url: event.image_url || undefined,
+  image_url: event.image_url || undefined,
+  category: (event as any).category || undefined,
         points: event.points || 10,
         status: event.status || 'upcoming'
       });
