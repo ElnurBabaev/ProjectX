@@ -44,16 +44,17 @@ const Navbar: React.FC = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             {/* Logo */}
-            <Link to="/" className="flex items-center">
+            <Link to="/" className="flex items-center focus:outline-none mr-6">
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 className="flex items-center space-x-2"
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">Ш</span>
+                {/* owl icon - larger and without surrounding box */}
+                <div className="flex items-center justify-center">
+                  <span className="text-3xl leading-none" role="img" aria-label="owl">🦉</span>
                 </div>
-                <span className="text-xl font-bold gradient-text hidden sm:block">
-                  Школьные мероприятия
+                <span className="text-xl font-bold gradient-text hidden sm:block max-w-[10rem] truncate block">
+                  Моя школа
                 </span>
               </motion.div>
             </Link>
