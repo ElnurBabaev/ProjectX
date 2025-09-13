@@ -5,9 +5,58 @@
 
 set -e
 
-echo "🚀 Безопасное обновление ProjectX на продакшене с резервным копированием..."
+echo "🚀 Безопасное обновление ProjectX на продакшене с резервным копирован# Выполняем безопасные миграции БД (только добавления, без потери данных)
+log "🗄️ Выполнение безопасных миграций базы данных..."
 
-# Цвета для вывода
+# Проверяем существующие таблицы
+log "🔍 Проверка существующих таблиц..."
+EXISTING_TABLES=$(sqlite3 database.sqlite ".tables")
+log "📋 Существующие таблицы: $EXISTING_TABLES"
+
+# Проверяем наличие таблицы уведомлений и создаем если нужно
+if echo "$EXISTING_TABLES" | grep -q "notifications"; then
+    log "✅ Таблица notifications уже существует"
+else
+    if [ -f "scripts/addNotificationsTable.js" ]; then
+        log "📬 Создание таблицы notifications через скрипт..."
+        node scripts/addNotificationsTable.js || warn "⚠️ Ошибка выполнения скрипта addNotificationsTable.js"
+    else
+        # Если файла миграции нет, создаем таблицу напрямую
+        log "📬 Создание таблицы notifications через SQL..."
+        sqlite3 database.sqlite "
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            type TEXT NOT NULL CHECK(type IN ('order_created', 'order_confirmed', 'order_cancelled', 'achievement_earned', 'event_confirmed', 'system')),
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            related_id TEXT,
+            is_read INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+        CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+        " && log "✅ Таблица notifications создана"
+    fi
+fi
+
+# Добавляем колонку category если отсутствует  
+log "🏷️ Проверка колонки category в таблице events..."
+CATEGORY_EXISTS=$(sqlite3 database.sqlite "PRAGMA table_info(events);" | grep -c "category" || echo "0")
+if [ "$CATEGORY_EXISTS" -gt 0 ]; then
+    log "✅ Колонка category уже существует"
+else
+    if [ -f "scripts/addCategoryColumn.js" ]; then
+        log "🏷️ Добавление колонки category через скрипт..."
+        node scripts/addCategoryColumn.js || warn "⚠️ Ошибка выполнения скрипта addCategoryColumn.js"
+    else
+        # Если файла миграции нет, добавляем колонку напрямую
+        log "🏷️ Добавление колонки category через SQL..."
+        sqlite3 database.sqlite "
+        ALTER TABLE events ADD COLUMN category TEXT DEFAULT 'общее';
+        " 2>/dev/null && log "✅ Колонка category добавлена" || warn "⚠️ Ошибка при добавлении колонки category"
+    fi
+fiта для вывода
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
@@ -398,6 +447,28 @@ pm2 list
 echo ""
 info "📋 Последние 10 строк логов API:"
 pm2 logs projectx-api --lines 10
+
+echo ""
+info "🗄️ Состояние базы данных:"
+cd /opt/projectx/backend
+TABLES_AFTER=$(sqlite3 database.sqlite ".tables")
+info "📋 Таблицы в БД: $TABLES_AFTER"
+
+# Проверяем таблицу notifications
+if echo "$TABLES_AFTER" | grep -q "notifications"; then
+    NOTIFICATIONS_COUNT=$(sqlite3 database.sqlite "SELECT COUNT(*) FROM notifications;")
+    info "📬 Таблица notifications: ✅ (записей: $NOTIFICATIONS_COUNT)"
+else
+    warn "📬 Таблица notifications: ❌ НЕ НАЙДЕНА!"
+fi
+
+# Проверяем колонку category
+CATEGORY_CHECK=$(sqlite3 database.sqlite "PRAGMA table_info(events);" | grep "category" || echo "")
+if [ -n "$CATEGORY_CHECK" ]; then
+    info "🏷️ Колонка category в events: ✅"
+else
+    warn "🏷️ Колонка category в events: ❌ НЕ НАЙДЕНА!"
+fi
 
 echo ""
 info "💾 Созданные резервные копии:"
