@@ -1,0 +1,47 @@
+import React from 'react';
+
+interface OwlIconProps {
+  className?: string;
+}
+
+const OwlIcon: React.FC<OwlIconProps> = ({ className = "w-6 h-6" }) => {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+      className={className}
+    >
+      {/* Owl body */}
+      <ellipse cx="12" cy="16" rx="6" ry="8"/>
+      
+      {/* Owl head */}
+      <circle cx="12" cy="8" r="6"/>
+      
+      {/* Eyes */}
+      <circle cx="10" cy="7" r="1.5"/>
+      <circle cx="14" cy="7" r="1.5"/>
+      
+      {/* Pupils */}
+      <circle cx="10" cy="7" r="0.5" fill="currentColor"/>
+      <circle cx="14" cy="7" r="0.5" fill="currentColor"/>
+      
+      {/* Beak */}
+      <path d="M12 9 L11 10 L13 10 Z" fill="currentColor"/>
+      
+      {/* Ear tufts */}
+      <path d="M8 4 L9 6"/>
+      <path d="M16 4 L15 6"/>
+      
+      {/* Wings */}
+      <path d="M6 14 C7 12, 8 13, 9 15"/>
+      <path d="M18 14 C17 12, 16 13, 15 15"/>
+    </svg>
+  );
+};
+
+export default OwlIcon;

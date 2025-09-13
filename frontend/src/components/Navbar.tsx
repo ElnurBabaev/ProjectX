@@ -15,6 +15,7 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationCenter from './NotificationCenter';
+import OwlIcon from './OwlIcon';
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,10 +51,10 @@ const Navbar: React.FC = () => {
                 whileHover={{ scale: 1.05 }}
                 className="flex items-center space-x-2"
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">SA</span>
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <OwlIcon className="w-6 h-6 text-gray-700" />
                 </div>
-                <span className="text-xl font-bold text-gray-800">SchoolActive</span>
+                <span className="text-xl font-bold text-gray-800">Моя школа</span>
               </motion.div>
             </Link>
 
