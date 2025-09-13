@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Calendar, ShoppingBag, Award, BarChart3, FileDown } from 'lucide-react';
+import { Users, Calendar, ShoppingBag, Award, BarChart3, FileDown, Bell, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import UserManagement from '../components/admin/UserManagement';
 import EventManagement from '../components/admin/EventManagement';
 import ProductManagement from '../components/admin/ProductManagement';
 import AchievementManagement from '../components/admin/AchievementManagement';
+import NotificationManagement from '../components/admin/NotificationManagement';
+import OrderManagement from '../components/admin/OrderManagement';
 
 interface Stats {
   users: number;
@@ -26,7 +28,9 @@ const AdminPanel: React.FC = () => {
     { id: 'users', label: 'Пользователи', icon: Users },
     { id: 'events', label: 'События', icon: Calendar },
     { id: 'products', label: 'Товары', icon: ShoppingBag },
-    { id: 'achievements', label: 'Достижения', icon: Award }
+    { id: 'orders', label: 'Заказы', icon: Package },
+    { id: 'achievements', label: 'Достижения', icon: Award },
+    { id: 'notifications', label: 'Уведомления', icon: Bell }
   ];
 
   useEffect(() => {
@@ -104,9 +108,13 @@ const AdminPanel: React.FC = () => {
         return <EventManagement />;
       case 'products':
         return <ProductManagement />;
+      case 'orders':
+        return <OrderManagement />;
       case 'achievements':
         console.log('AdminPanel: Rendering AchievementManagement component');
         return <AchievementManagement />;
+      case 'notifications':
+        return <NotificationManagement />;
       default:
         return (
           <div className="space-y-6">

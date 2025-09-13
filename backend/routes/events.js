@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { auth, adminAuth } = require('../middleware/auth');
 const { recalculateUserPoints, updateUserPointsForEvent } = require('../utils/pointsCalculator');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 
@@ -270,6 +271,62 @@ router.get('/:id/participants', adminAuth, async (req, res) => {
     res.json({ participants: result.rows });
   } catch (error) {
     console.error('Ошибка получения участников:', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Подтверждение участия пользователя (для админов)
+router.post('/:eventId/confirm/:userId', adminAuth, async (req, res) => {
+  try {
+    const { eventId, userId } = req.params;
+
+    // Проверяем существование мероприятия и пользователя
+    const eventResult = await db.query('SELECT * FROM events WHERE id = ?', [eventId]);
+    const userResult = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
+
+    if (eventResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Мероприятие не найдено' });
+    }
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    const event = eventResult.rows[0];
+    const user = userResult.rows[0];
+
+    // Проверяем существование регистрации
+    const registrationResult = await db.query(
+      'SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ?',
+      [eventId, userId]
+    );
+
+    if (registrationResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Регистрация не найдена' });
+    }
+
+    // Обновляем статус на "attended" и начисляем баллы
+    await db.query(
+      'UPDATE event_registrations SET status = ?, points_awarded = ? WHERE event_id = ? AND user_id = ?',
+      ['attended', event.points || 0, eventId, userId]
+    );
+
+    // Пересчитываем баллы пользователя
+    await recalculateUserPoints(userId);
+
+    // Создаем уведомление о подтверждении участия
+    await Notification.create(
+      userId,
+      'event_confirmed',
+      `✅ Участие подтверждено: ${event.title}`,
+      `Администратор подтвердил ваше участие в мероприятии "${event.title}". Вы заработали ${event.points || 0} баллов.`,
+      eventId
+    );
+
+    console.log(`Уведомление о подтверждении участия в "${event.title}" отправлено пользователю ${userId}`);
+
+    res.json({ message: 'Участие успешно подтверждено' });
+  } catch (error) {
+    console.error('Ошибка подтверждения участия:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });

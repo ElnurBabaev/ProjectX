@@ -4,6 +4,7 @@ const db = require('../config/database');
 const { auth, adminAuth } = require('../middleware/auth');
 const AchievementChecker = require('../utils/achievementChecker');
 const { recalculateUserPoints } = require('../utils/pointsCalculator');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 
@@ -120,8 +121,33 @@ router.post('/order', [
     // Проверяем достижения после покупки
     const earnedAchievements = await AchievementChecker.checkAfterPurchase(userId);
 
-  // Пересчитываем баланс пользователя с учетом покупки
-  await recalculateUserPoints(userId);
+    // Пересчитываем баланс пользователя с учетом покупки
+    await recalculateUserPoints(userId);
+
+    // Создаем уведомление для всех админов
+    try {
+      // Получаем полную информацию о пользователе
+      const userResult = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
+      const user = userResult.rows[0];
+
+      if (user) {
+        const adminResult = await db.query('SELECT id FROM users WHERE role = ?', ['admin']);
+        const adminIds = adminResult.rows.map(admin => admin.id);
+
+        for (const adminId of adminIds) {
+          await Notification.create(
+            adminId,
+            'order_created',
+            'Новый заказ',
+            `Ученик ${user.first_name} ${user.last_name} (${user.class_grade}${user.class_letter}) создал заказ №${orderId} на сумму ${totalAmount} баллов`,
+            orderId
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.error('Ошибка создания уведомления:', notificationError);
+      // Не прерываем процесс создания заказа из-за ошибки уведомления
+    }
 
     res.status(201).json({
       message: 'Заказ успешно создан',
@@ -271,7 +297,7 @@ router.delete('/:id', adminAuth, async (req, res) => {
 router.get('/orders/all', adminAuth, async (req, res) => {
   try {
     const ordersResult = await db.query(`
-      SELECT o.*, u.username, u.full_name
+      SELECT o.*, u.first_name, u.last_name, u.class_grade, u.class_letter
       FROM orders o
       JOIN users u ON o.user_id = u.id
       ORDER BY o.created_at DESC
@@ -303,18 +329,86 @@ router.get('/orders/all', adminAuth, async (req, res) => {
 // Обновление статуса заказа
 router.put('/orders/:id/status', [
   adminAuth,
-  body('status').isIn(['pending', 'processing', 'shipped', 'delivered', 'cancelled']).withMessage('Неверный статус заказа')
+  body('status').isIn(['pending', 'processing', 'shipped', 'delivered', 'cancelled']).withMessage('Неверный статус заказа'),
+  body('pickupLocation').optional().isString().withMessage('Место получения должно быть строкой')
 ], async (req, res) => {
   try {
-    const { status } = req.body;
-    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { status, pickupLocation } = req.body;
+    const orderId = req.params.id;
+
+    // Получаем информацию о заказе и пользователе
+    const orderResult = await db.query(`
+      SELECT o.*, u.first_name, u.last_name, u.class_grade, u.class_letter
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      WHERE o.id = ?
+    `, [orderId]);
+
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Заказ не найден' });
+    }
+
+    const order = orderResult.rows[0];
+
+    // Обновляем статус заказа
+    const updateData = { status };
+    const updateFields = ['status = ?'];
+    const updateValues = [status];
+
+    if (pickupLocation) {
+      updateFields.push('notes = ?');
+      updateValues.push(`Место получения: ${pickupLocation}`);
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    updateValues.push(orderId);
+
     const result = await db.query(
-      'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [status, req.params.id]
+      `UPDATE orders SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Заказ не найден' });
+    }
+
+    // Отправляем уведомление ученику при подтверждении заказа
+    if (status === 'processing' || status === 'shipped') {
+      try {
+        const statusText = status === 'processing' ? 'подтвержден' : 'готов к выдаче';
+        const locationText = pickupLocation ? ` в ${pickupLocation}` : '';
+
+        await Notification.create(
+          order.user_id,
+          'order_confirmed',
+          '📦 Заказ готов к получению',
+          `Ваш заказ №${orderId} ${statusText}${locationText}. Пожалуйста, обратитесь к администратору для получения.`,
+          orderId
+        );
+      } catch (notificationError) {
+        console.error('Ошибка создания уведомления:', notificationError);
+        // Не прерываем процесс обновления статуса
+      }
+    }
+
+    // Отправляем уведомление ученику при отмене заказа
+    if (status === 'cancelled') {
+      try {
+        await Notification.create(
+          order.user_id,
+          'order_cancelled',
+          'Заказ отменен',
+          `Ваш заказ №${orderId} был отменен. Баллы будут возвращены на ваш счет.`,
+          orderId
+        );
+      } catch (notificationError) {
+        console.error('Ошибка создания уведомления:', notificationError);
+      }
     }
 
     res.json({ message: 'Статус заказа обновлен' });

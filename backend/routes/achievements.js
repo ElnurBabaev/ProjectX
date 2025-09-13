@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { auth, adminAuth } = require('../middleware/auth');
 const { updateUserPointsForAchievement, recalculateUserPoints } = require('../utils/pointsCalculator');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 
@@ -194,6 +195,9 @@ router.post('/:achievementId/award/:userId', adminAuth, async (req, res) => {
       return res.status(404).json({ message: 'Пользователь не найден' });
     }
 
+    const achievement = achievementResult.rows[0];
+    const user = userResult.rows[0];
+
     // Проверяем, что у пользователя еще нет этого достижения
     const existingResult = await db.query(
       'SELECT id FROM user_achievements WHERE user_id = ? AND achievement_id = ?',
@@ -212,6 +216,17 @@ router.post('/:achievementId/award/:userId', adminAuth, async (req, res) => {
 
     // Пересчитываем баллы пользователя
     await recalculateUserPoints(userId);
+
+    // Создаем уведомление о новом достижении
+    await Notification.create(
+      userId,
+      'achievement_earned',
+      `🏆 Новое достижение: ${achievement.title}`,
+      `Поздравляем! Вам присвоено достижение "${achievement.title}". Вы заработали ${achievement.points} баллов.`,
+      achievementId
+    );
+
+    console.log(`Уведомление о достижении "${achievement.title}" отправлено пользователю ${userId}`);
 
     res.json({ message: 'Достижение успешно присвоено пользователю' });
   } catch (error) {

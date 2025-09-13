@@ -222,4 +222,6 @@ const Product = {
   }
 };
 
-module.exports = { User, Event, Product, Achievement };
+const Notification = require('./Notification');
+
+module.exports = { User, Event, Product, Achievement, Notification };

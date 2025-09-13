@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const { adminAuth } = require('../middleware/auth');
 const AchievementChecker = require('../utils/achievementChecker');
 const { recalculateUserPoints } = require('../utils/pointsCalculator');
+const Notification = require('../models/Notification');
 const xlsx = require('xlsx');
 
 const router = express.Router();
@@ -487,10 +488,11 @@ router.post('/events/:eventId/confirm-attendance', [
     const { userId } = req.body;
 
     // Проверяем существование события
-    const eventCheck = await db.query('SELECT id, points FROM events WHERE id = ?', [eventId]);
+    const eventCheck = await db.query('SELECT id, title, points FROM events WHERE id = ?', [eventId]);
     if (eventCheck.rows.length === 0) {
       return res.status(404).json({ message: 'Событие не найдено' });
     }
+    const event = eventCheck.rows[0];
 
     // Проверяем существование регистрации
     const registrationCheck = await db.query(
@@ -506,8 +508,6 @@ router.post('/events/:eventId/confirm-attendance', [
       return res.status(400).json({ message: 'Участие уже подтверждено' });
     }
 
-    const event = eventCheck.rows[0];
-
     // Обновляем статус регистрации на "присутствовал" и фиксируем начисленные баллы за событие
     await db.query(
       'UPDATE event_registrations SET status = ?, points_awarded = ? WHERE event_id = ? AND user_id = ?',
@@ -516,22 +516,27 @@ router.post('/events/:eventId/confirm-attendance', [
 
     console.log('Updated registration status to attended');
 
-    // Пересчет общего и доступного баланса по новой модели
+    // Пересчитываем общие баллы пользователя
     await recalculateUserPoints(userId);
+    
+    // Проверяем, не получил ли пользователь новые достижения
+    try {
+      await AchievementChecker.checkAfterEventParticipation(userId);
+    } catch (achievementError) {
+      console.error(`Ошибка при проверке достижений для пользователя ${userId} после события ${eventId}:`, achievementError);
+      // Не прерываем основной процесс, просто логируем ошибку
+    }
 
-    console.log('Recalculated user points');
+    // Создаем уведомление
+    await Notification.create(
+      userId,
+      'event_confirmed',
+      `Ваше участие в мероприятии "${event.title}" подтверждено!`,
+      `Вы были отмечены как присутствующий на мероприятии "${event.title}". Вам начислено ${event.points} баллов.`,
+      eventId
+    );
 
-    // Проверяем достижения после участия в мероприятии
-    const earnedAchievements = await AchievementChecker.checkAfterEventParticipation(userId);
-
-    console.log('Checked achievements:', earnedAchievements);
-
-    res.json({ 
-      message: 'Участие подтверждено',
-  pointsAwarded: Math.floor(event.points || 0),
-      achievementsEarned: earnedAchievements.length,
-      newAchievements: earnedAchievements.map(a => ({ id: a.id, title: a.title }))
-    });
+    res.json({ message: 'Участие подтверждено, баллы начислены' });
   } catch (error) {
     console.error('Ошибка подтверждения участия:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
@@ -852,6 +857,8 @@ router.post('/achievements/:achievementId/assign', [
   body('userId').isInt().withMessage('ID пользователя должен быть числом')
 ], async (req, res) => {
   try {
+    console.log('🔍 Роут назначения достижения вызван:', req.params, req.body);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -859,6 +866,8 @@ router.post('/achievements/:achievementId/assign', [
 
     const { achievementId } = req.params;
     const { userId } = req.body;
+
+    console.log('🔍 Назначаем достижение:', achievementId, 'пользователю:', userId);
 
     // Проверяем существование достижения
     const achievementCheck = await db.query('SELECT id, points FROM achievements WHERE id = ?', [achievementId]);
@@ -884,14 +893,35 @@ router.post('/achievements/:achievementId/assign', [
     const achievement = achievementCheck.rows[0];
     const user = userCheck.rows[0];
 
-  // Добавляем достижение пользователю
+    // Добавляем достижение пользователю
     await db.query(
       'INSERT INTO user_achievements (user_id, achievement_id, awarded_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
       [userId, achievementId]
     );
+    console.log('✅ Достижение добавлено в user_achievements');
 
-  // Пересчитываем баланс по новой модели
-  await recalculateUserPoints(userId);
+    // Получаем данные о достижении для уведомления
+    const achievementResult = await db.query('SELECT title FROM achievements WHERE id = ?', [achievementId]);
+    const achievementTitle = achievementResult.rows[0]?.title;
+    console.log('🔍 Название достижения для уведомления:', achievementTitle);
+
+    // Создаем уведомление о получении достижения
+    try {
+      console.log('🔍 Создаем уведомление для пользователя:', userId);
+      await Notification.create(
+        userId,
+        'achievement_earned',
+        'Новое достижение!',
+        `Вы получили достижение "${achievementTitle}"`,
+        achievementId
+      );
+      console.log(`✅ Уведомление о достижении создано для пользователя ${userId}`);
+    } catch (notificationError) {
+      console.error('❌ Ошибка создания уведомления о достижении:', notificationError);
+    }
+
+    // Пересчитываем баланс по новой модели
+    await recalculateUserPoints(userId);
 
     res.json({ 
   message: 'Достижение успешно назначено пользователю',

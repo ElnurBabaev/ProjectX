@@ -12,6 +12,7 @@ const productRoutes = require('./routes/products');
 const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
 const rankingRoutes = require('./routes/rankings');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 5000;
@@ -76,6 +77,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/rankings', rankingRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

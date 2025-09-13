@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const { recalculateUserPoints } = require('./pointsCalculator');
+const Notification = require('../models/Notification');
 
 class AchievementChecker {
   // Проверить все условия достижений для пользователя
@@ -146,6 +147,19 @@ class AchievementChecker {
         return false; // Уже назначено
       }
 
+      // Получаем информацию о достижении для уведомления
+      const achievementResult = await db.query(
+        'SELECT title, points FROM achievements WHERE id = ?',
+        [achievementId]
+      );
+
+      if (achievementResult.rows.length === 0) {
+        console.error('Достижение не найдено:', achievementId);
+        return false;
+      }
+
+      const achievement = achievementResult.rows[0];
+
       // Назначаем достижение
       await db.query(
         'INSERT INTO user_achievements (user_id, achievement_id, notes) VALUES (?, ?, ?)',
@@ -154,6 +168,17 @@ class AchievementChecker {
 
       // Пересчитываем общие баллы пользователя
       await recalculateUserPoints(userId);
+
+      // Создаем уведомление о новом достижении
+      await Notification.create(
+        userId,
+        'achievement_earned',
+        `🏆 Новое достижение: ${achievement.title}`,
+        `Поздравляем! Вы получили достижение "${achievement.title}" и заработали ${achievement.points} баллов.`,
+        achievementId
+      );
+
+      console.log(`Уведомление о достижении "${achievement.title}" отправлено пользователю ${userId}`);
 
       return true;
     } catch (error) {

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationCenter from './NotificationCenter';
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,77 +50,56 @@ const Navbar: React.FC = () => {
                 whileHover={{ scale: 1.05 }}
                 className="flex items-center space-x-2"
               >
-                {/* owl icon - larger and without surrounding box */}
-                <div className="flex items-center justify-center">
-                  <span className="text-3xl leading-none" role="img" aria-label="owl">🦉</span>
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">SA</span>
                 </div>
-                <span className="text-xl font-bold gradient-text hidden sm:block max-w-[10rem] truncate block">
-                  Моя школа
-                </span>
+                <span className="text-xl font-bold text-gray-800">SchoolActive</span>
               </motion.div>
             </Link>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-1">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive(item.href)
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'text-gray-700 hover:text-blue-700 hover:bg-blue-50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 mr-2" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isActive(item.href)
-                    ? 'text-blue-600 bg-blue-50'
-                    : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-                }`}
-              >
-                <item.icon className={`w-4 h-4 mr-2 stroke-current ${
-                  isActive(item.href) ? 'text-blue-600' : 'text-gray-600'
-                }`} />
-                {item.name}
-              </Link>
-            ))}
-          </div>
-
-          {/* User Menu */}
+          {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-4">
-            {user?.isAdmin && (
+            {user?.role === 'admin' && (
               <Link
                 to="/admin"
-                className="flex items-center px-3 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-all duration-200"
+                className="flex items-center px-3 py-2 text-sm font-medium text-purple-700 hover:text-purple-900 hover:bg-purple-50 rounded-lg transition-all duration-200"
               >
-                <Shield className="w-4 h-4 mr-2 stroke-current text-purple-600" />
-                Админ
+                <Shield className="w-4 h-4 mr-1" />
+                Админ-панель
               </Link>
             )}
-            
-            <div className="flex items-center space-x-3 px-3 py-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-semibold text-sm">
-                  {user?.first_name?.charAt(0) || 'У'}
-                </span>
-              </div>
-              <div className="text-sm">
-                <div className="font-semibold text-gray-800">
-                  {user?.first_name} {user?.last_name}
-                </div>
-                <div className="text-gray-600">
-                  {user?.class}
-                </div>
-              </div>
-            </div>
 
             <Link
               to="/profile"
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                isActive('/profile')
-                  ? 'text-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
             >
-              <User className={`w-5 h-5 stroke-current ${
-                isActive('/profile') ? 'text-blue-600' : 'text-gray-600'
-              }`} />
+              <User className="w-4 h-4 mr-1" />
+              Профиль
             </Link>
+
+            <NotificationCenter className="md:block hidden" />
 
             <button
               onClick={handleLogout}
@@ -130,7 +110,9 @@ const Navbar: React.FC = () => {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center space-x-2">
+            <NotificationCenter className="md:hidden block" />
+
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="p-2 rounded-lg text-gray-600 hover:text-gray-800 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -153,80 +135,67 @@ const Navbar: React.FC = () => {
         className="md:hidden overflow-hidden bg-white/90 backdrop-blur-lg border-t border-white/20"
       >
         <div className="px-4 py-4 space-y-1">
-          {navigation.map((item) => (
-            <Link
-              key={item.name}
-              to={item.href}
-              onClick={() => setIsOpen(false)}
-              className={`flex items-center px-3 py-2 rounded-lg text-base font-medium transition-all duration-200 ${
-                isActive(item.href)
-                  ? 'text-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-              }`}
-            >
-              <item.icon className={`w-5 h-5 mr-3 stroke-current ${
-                isActive(item.href) ? 'text-blue-600' : 'text-gray-600'
-              }`} />
-              {item.name}
-            </Link>
-          ))}
-          
-          {user?.isAdmin && (
-            <Link
-              to="/admin"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center px-3 py-2 text-base font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-all duration-200"
-            >
-              <Shield className="w-5 h-5 mr-3 stroke-current text-purple-600" />
-              Админ панель
-            </Link>
-          )}
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center px-3 py-3 rounded-lg text-base font-medium transition-all duration-200 ${
+                  isActive(item.href)
+                    ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-500'
+                    : 'text-gray-700 hover:text-blue-700 hover:bg-blue-50'
+                }`}
+              >
+                <Icon className="w-5 h-5 mr-3" />
+                {item.name}
+              </Link>
+            );
+          })}
 
-          <div className="border-t border-gray-200 my-2"></div>
-          
-          <Link
-            to="/profile"
-            onClick={() => setIsOpen(false)}
-            className={`flex items-center px-3 py-2 rounded-lg text-base font-medium transition-all duration-200 ${
-              isActive('/profile')
-                ? 'text-blue-600 bg-blue-50'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
-            }`}
-          >
-            <User className={`w-5 h-5 mr-3 stroke-current ${
-              isActive('/profile') ? 'text-blue-600' : 'text-gray-600'
-            }`} />
-            Профиль
-          </Link>
-          
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              handleLogout();
-            }}
-            className="flex items-center w-full px-3 py-2 text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
-          >
-            <LogOut className="w-5 h-5 mr-3 stroke-current text-red-600" />
-            Выйти
-          </button>
+          {/* Mobile Profile Section */}
+          <div className="pt-4 border-t border-gray-200">
+            {user?.role === 'admin' && (
+              <Link
+                to="/admin"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center px-3 py-3 text-base font-medium text-purple-700 hover:text-purple-900 hover:bg-purple-50 rounded-lg transition-all duration-200"
+              >
+                <Shield className="w-5 h-5 mr-3" />
+                Админ-панель
+              </Link>
+            )}
 
-          {/* User info in mobile */}
-          <div className="px-3 py-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-semibold">
-                  {user?.first_name?.charAt(0) || 'У'}
-                </span>
-              </div>
-              <div>
-                <div className="font-semibold text-gray-800">
-                  {user?.first_name} {user?.last_name}
-                </div>
-                <div className="text-sm text-gray-600">
+            <Link
+              to="/profile"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center px-3 py-3 text-base font-medium text-gray-700 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+            >
+              <User className="w-5 h-5 mr-3" />
+              Профиль
+            </Link>
+
+            <button
+              onClick={() => {
+                handleLogout();
+                setIsOpen(false);
+              }}
+              className="flex items-center w-full px-3 py-3 text-base font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
+            >
+              <LogOut className="w-5 h-5 mr-3" />
+              Выйти
+            </button>
+
+            {user && (
+              <div className="px-3 py-3 bg-gray-50 rounded-lg mt-2">
+                <div className="text-sm text-gray-500">Вошли как:</div>
+                <div className="font-medium text-gray-900">{user.login}</div>
+                <div className="text-sm text-gray-500">
                   {user?.class}
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </motion.div>

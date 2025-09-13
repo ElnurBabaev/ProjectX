@@ -141,6 +141,20 @@ async function initDatabase() {
       )
     `);
 
+    // Создание таблицы уведомлений
+    await database.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type TEXT NOT NULL CHECK(type IN ('order_created', 'order_confirmed', 'order_cancelled', 'achievement_earned', 'system')),
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        related_id INTEGER, -- ID связанного объекта (заказ, достижение и т.д.)
+        is_read BOOLEAN DEFAULT false,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Создание индексов для улучшения производительности
     await database.query('CREATE INDEX IF NOT EXISTS idx_users_login ON users(login)');
     await database.query('CREATE INDEX IF NOT EXISTS idx_events_status ON events(status)');
@@ -149,6 +163,8 @@ async function initDatabase() {
     await database.query('CREATE INDEX IF NOT EXISTS idx_event_registrations_user_id ON event_registrations(user_id)');
     await database.query('CREATE INDEX IF NOT EXISTS idx_user_achievements_user_id ON user_achievements(user_id)');
     await database.query('CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)');
+    await database.query('CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)');
+    await database.query('CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read)');
 
     console.log('✅ База данных SQLite успешно инициализирована!');
 
